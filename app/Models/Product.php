@@ -82,6 +82,14 @@ class Product extends Model
     }
 
     /**
+     * Whether the product may be added to a new order (stock is checked separately).
+     */
+    public function isOrderable(): bool
+    {
+        return $this->status === ProductStatus::Active;
+    }
+
+    /**
      * Whether a stock-managed product has reached its low-stock threshold.
      */
     public function isLowStock(): bool

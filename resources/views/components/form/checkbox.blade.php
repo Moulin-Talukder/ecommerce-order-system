@@ -1,4 +1,4 @@
-@props(['name', 'label', 'checked' => false, 'hint' => null])
+@props(['name', 'label', 'checked' => false, 'hint' => null, 'bag' => 'default'])
 
 <div>
     <input type="hidden" name="{{ $name }}" value="0">
@@ -15,7 +15,7 @@
     @if ($hint)
         <p class="mt-1 text-xs text-gray-500">{{ $hint }}</p>
     @endif
-    @error($name)
+    @error($name, $bag)
         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
     @enderror
 </div>

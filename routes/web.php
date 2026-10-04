@@ -3,6 +3,9 @@
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\OrderPaymentController;
+use App\Http\Controllers\Admin\OrderStatusController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductImageController;
 use App\Http\Controllers\Admin\ProductStockController;
@@ -34,6 +37,11 @@ Route::middleware(['auth', 'admin'])
 
         Route::resource('brands', BrandController::class)->except('show');
         Route::patch('brands/{brand}/status', [BrandController::class, 'updateStatus'])->name('brands.status');
+
+        Route::resource('orders', OrderController::class)->except('destroy');
+        Route::patch('orders/{order}/status', [OrderStatusController::class, 'update'])->name('orders.status');
+        Route::post('orders/{order}/payments', [OrderPaymentController::class, 'store'])->name('orders.payments.store');
+        Route::post('orders/{order}/refunds', [OrderPaymentController::class, 'refund'])->name('orders.refunds.store');
 
         Route::resource('customers', CustomerController::class);
         Route::patch('customers/{customer}/status', [CustomerController::class, 'updateStatus'])->name('customers.status');

@@ -1,6 +1,11 @@
 <x-layouts::admin :title="$customer->name">
     <x-admin.page-header :title="$customer->name" :description="'Customer since '.$customer->created_at->format('d M Y')">
         <x-slot:actions>
+            @can('create', App\Models\Order::class)
+                @if ($customer->status !== App\Enums\CustomerStatus::Blocked)
+                    <x-admin.button variant="secondary" :href="route('admin.orders.create', ['customer' => $customer->id])">New order</x-admin.button>
+                @endif
+            @endcan
             @can('update', $customer)
                 <x-admin.button :href="route('admin.customers.edit', $customer)">Edit</x-admin.button>
             @endcan
@@ -51,7 +56,7 @@
                             <tbody class="divide-y divide-gray-100">
                                 @foreach ($orders as $order)
                                     <tr>
-                                        <td class="px-6 py-3 font-mono text-xs text-gray-900">{{ $order->order_number }}</td>
+                                        <td class="px-6 py-3"><a href="{{ route('admin.orders.show', $order) }}" class="font-mono text-xs font-medium text-gray-900 hover:underline">{{ $order->order_number }}</a></td>
                                         <td class="px-6 py-3 text-gray-700">{{ $order->created_at->format('d M Y') }}</td>
                                         <td class="px-6 py-3 text-right tabular-nums text-gray-700">{{ $order->items_count }}</td>
                                         <td class="px-6 py-3 text-right tabular-nums text-gray-900">{{ App\Support\Money::format($order->total, $order->currency) }}</td>

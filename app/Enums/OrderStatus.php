@@ -32,6 +32,30 @@ enum OrderStatus: string
     }
 
     /**
+     * Button label for moving an order into this status.
+     */
+    public function actionLabel(): string
+    {
+        return match ($this) {
+            self::Pending => 'Mark pending',
+            self::Confirmed => 'Confirm order',
+            self::Processing => 'Start processing',
+            self::Shipped => 'Mark shipped',
+            self::Delivered => 'Mark delivered',
+            self::Cancelled => 'Cancel order',
+            self::Returned => 'Mark returned',
+        };
+    }
+
+    /**
+     * Whether delivery details (address, phones, recipient) may still be corrected.
+     */
+    public function allowsDeliveryChanges(): bool
+    {
+        return in_array($this, [self::Pending, self::Confirmed, self::Processing], true);
+    }
+
+    /**
      * Statuses this status may move to.
      *
      * @return list<self>

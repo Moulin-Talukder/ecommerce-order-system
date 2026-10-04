@@ -6,11 +6,13 @@ use App\Enums\CustomerStatus;
 use App\Enums\OrderStatus;
 use App\Exceptions\CannotDeleteException;
 use App\Models\Customer;
+use App\Support\PhoneNumber;
 use Closure;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 /**
  * Write operations and server-side summaries for customers.
@@ -38,6 +40,33 @@ class CustomerService
 
             return $customer;
         });
+    }
+
+    /**
+     * Find a customer by (normalized) phone, or create one. Used by order
+     * placement so the same person is never duplicated because their number
+     * was typed differently. An existing customer's saved details are not
+     * overwritten; each order keeps its own snapshot instead.
+     *
+     * @param  array<string, mixed>  $data  Customer attributes including phone.
+     */
+    public function findOrCreateByPhone(array $data): Customer
+    {
+        $phone = PhoneNumber::normalize((string) ($data['phone'] ?? ''))
+            ?? throw new InvalidArgumentException('A valid phone number is required.');
+
+        $existing = Customer::query()->where('phone', $phone)->lockForUpdate()->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        try {
+            return Customer::create(['phone' => $phone] + $data);
+        } catch (UniqueConstraintViolationException) {
+            // Created concurrently by another request: use that record.
+            return Customer::query()->where('phone', $phone)->firstOrFail();
+        }
     }
 
     /**
