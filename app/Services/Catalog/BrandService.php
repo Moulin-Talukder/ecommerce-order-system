@@ -34,6 +34,22 @@ class BrandService
         return $brand;
     }
 
+    /**
+     * Brands a product may be assigned to: active ones, plus $alwaysInclude
+     * (a product's current brand) even if it is inactive.
+     *
+     * @return array<int, string> id => name
+     */
+    public function productBrandOptions(?int $alwaysInclude = null): array
+    {
+        return Brand::query()
+            ->where(fn ($query) => $query->where('is_active', true)->when($alwaysInclude, fn ($query) => $query->orWhereKey($alwaysInclude)))
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_active'])
+            ->mapWithKeys(fn (Brand $brand) => [$brand->id => $brand->is_active ? $brand->name : $brand->name.' (inactive)'])
+            ->all();
+    }
+
     public function setActive(Brand $brand, bool $active): Brand
     {
         $brand->update(['is_active' => $active]);

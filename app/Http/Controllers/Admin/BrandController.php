@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\BrandRequest;
 use App\Http\Requests\Admin\UpdateStatusRequest;
 use App\Models\Brand;
 use App\Services\Catalog\BrandService;
+use App\Support\Like;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -25,11 +26,9 @@ class BrandController extends Controller
 
         $brands = Brand::query()
             ->withCount('products')
-            ->when($search !== '', function ($query) use ($search) {
-                $term = '%'.addcslashes($search, '%_\\').'%';
-
-                $query->where(fn ($query) => $query->where('name', 'like', $term)->orWhere('slug', 'like', $term));
-            })
+            ->when($search !== '', fn ($query) => $query->where(
+                fn ($query) => $query->where('name', 'like', Like::contains($search))->orWhere('slug', 'like', Like::contains($search))
+            ))
             ->when(in_array($status, ['active', 'inactive'], true), fn ($query) => $query->where('is_active', $status === 'active'))
             ->orderBy('name')
             ->paginate(25)

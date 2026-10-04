@@ -110,7 +110,40 @@ class CategoryTreeTest extends TestCase
         $this->assertSame([], $this->tree->parentOptions(1));
     }
 
-    private function category(int $id, ?int $parentId, string $name, int $sortOrder = 0): Category
+    public function test_a_category_is_effectively_active_only_if_all_ancestors_are_active(): void
+    {
+        $tree = new CategoryTree(collect([
+            $this->category(1, null, 'Electronics', active: false),
+            $this->category(2, 1, 'Phones'),
+            $this->category(3, null, 'Fashion'),
+        ]));
+
+        $this->assertFalse($tree->isEffectivelyActive(1));
+        $this->assertFalse($tree->isEffectivelyActive(2));
+        $this->assertTrue($tree->isEffectivelyActive(3));
+        $this->assertFalse($tree->isEffectivelyActive(999));
+    }
+
+    public function test_product_category_options_list_visible_categories_plus_the_current_one(): void
+    {
+        $tree = new CategoryTree(collect([
+            $this->category(1, null, 'Electronics', active: false),
+            $this->category(2, 1, 'Phones'),
+            $this->category(3, null, 'Fashion'),
+        ]));
+
+        $this->assertSame([3 => 'Fashion'], $tree->productCategoryOptions());
+        $this->assertSame([2 => 'Electronics › Phones (inactive)', 3 => 'Fashion'], $tree->productCategoryOptions(2));
+    }
+
+    public function test_filter_helpers(): void
+    {
+        $this->assertSame([1, 2, 3, 4], $this->tree->selfAndDescendantIds(1));
+        $this->assertSame('Electronics › Phones › Android', $this->tree->allOptions()[3]);
+        $this->assertCount(5, $this->tree->allOptions());
+    }
+
+    private function category(int $id, ?int $parentId, string $name, int $sortOrder = 0, bool $active = true): Category
     {
         return (new Category)->forceFill([
             'id' => $id,
@@ -118,7 +151,7 @@ class CategoryTreeTest extends TestCase
             'name' => $name,
             'slug' => strtolower($name),
             'sort_order' => $sortOrder,
-            'is_active' => true,
+            'is_active' => $active,
         ]);
     }
 }

@@ -153,6 +153,78 @@ final class CategoryTree
     }
 
     /**
+     * Whether the category and all of its ancestors are active (i.e. it is
+     * visible on the storefront).
+     */
+    public function isEffectivelyActive(int $id): bool
+    {
+        $visited = [];
+        $currentId = $id;
+
+        while ($currentId !== null) {
+            $category = $this->find($currentId);
+
+            if (! $category || ! $category->is_active || isset($visited[$currentId])) {
+                return false;
+            }
+
+            $visited[$currentId] = true;
+            $currentId = $category->parent_id;
+        }
+
+        return true;
+    }
+
+    /**
+     * Categories a product may be assigned to: effectively active ones, plus
+     * $alwaysInclude (a product's current category) even if it is inactive.
+     *
+     * @return array<int, string> id => path
+     */
+    public function productCategoryOptions(?int $alwaysInclude = null): array
+    {
+        $options = [];
+
+        foreach ($this->flattened() as $row) {
+            $id = $row['category']->id;
+
+            if ($this->isEffectivelyActive($id)) {
+                $options[$id] = $this->path($id);
+            } elseif ($id === $alwaysInclude) {
+                $options[$id] = $this->path($id).' (inactive)';
+            }
+        }
+
+        return $options;
+    }
+
+    /**
+     * Every category as id => path, in display order (for filters).
+     *
+     * @return array<int, string>
+     */
+    public function allOptions(): array
+    {
+        $options = [];
+
+        foreach ($this->flattened() as $row) {
+            $options[$row['category']->id] = $this->path($row['category']->id);
+        }
+
+        return $options;
+    }
+
+    /**
+     * Ids of a category and all its descendants (for "products in this category" filters).
+     *
+     * @return list<int>
+     */
+    public function selfAndDescendantIds(int $id): array
+    {
+        return [$id, ...$this->descendantIds($id)];
+    }
+
+    /**
      * Categories that may be chosen as the parent of $categoryId (null = new category).
      *
      * @return array<int, string> id => path

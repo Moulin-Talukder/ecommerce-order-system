@@ -2,33 +2,31 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Category;
 use App\Models\User;
+use App\Policies\Concerns\AuthorizesCatalog;
 
-/**
- * Viewing: every admin-panel role. Creating, editing, (de)activating:
- * Super Admin, Admin, Manager. Deleting: Super Admin and Admin only.
- */
 class CategoryPolicy
 {
+    use AuthorizesCatalog;
+
     public function viewAny(User $user): bool
     {
-        return $user->canAccessAdmin();
+        return $this->canView($user);
     }
 
     public function create(User $user): bool
     {
-        return $user->hasRole(UserRole::SuperAdmin, UserRole::Admin, UserRole::Manager);
+        return $this->canManage($user);
     }
 
     public function update(User $user, Category $category): bool
     {
-        return $user->hasRole(UserRole::SuperAdmin, UserRole::Admin, UserRole::Manager);
+        return $this->canManage($user);
     }
 
     public function delete(User $user, Category $category): bool
     {
-        return $user->hasRole(UserRole::SuperAdmin, UserRole::Admin);
+        return $this->canDelete($user);
     }
 }

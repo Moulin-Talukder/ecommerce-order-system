@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Catalog product (current data only; orders keep their own snapshots).
@@ -81,6 +82,16 @@ class Product extends Model
     }
 
     /**
+     * Whether a stock-managed product has reached its low-stock threshold.
+     */
+    public function isLowStock(): bool
+    {
+        return $this->manage_stock
+            && $this->low_stock_threshold !== null
+            && $this->stock_quantity <= $this->low_stock_threshold;
+    }
+
+    /**
      * @return BelongsTo<Category, $this>
      */
     public function category(): BelongsTo
@@ -104,6 +115,16 @@ class Product extends Model
     public function images(): HasMany
     {
         return $this->hasMany(ProductImage::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * The primary image: lowest sort_order (ties broken by id).
+     *
+     * @return HasOne<ProductImage, $this>
+     */
+    public function primaryImage(): HasOne
+    {
+        return $this->hasOne(ProductImage::class)->ofMany(['sort_order' => 'min', 'id' => 'min']);
     }
 
     /**

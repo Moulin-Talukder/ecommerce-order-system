@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProductImageController;
+use App\Http\Controllers\Admin\ProductStockController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -30,4 +33,18 @@ Route::middleware(['auth', 'admin'])
 
         Route::resource('brands', BrandController::class)->except('show');
         Route::patch('brands/{brand}/status', [BrandController::class, 'updateStatus'])->name('brands.status');
+
+        Route::resource('products', ProductController::class);
+        Route::patch('products/{product}/status', [ProductController::class, 'updateStatus'])->name('products.status');
+        Route::post('products/{product}/stock-adjustments', [ProductStockController::class, 'store'])->name('products.stock.adjust');
+        Route::patch('products/{product}/availability', [ProductStockController::class, 'availability'])->name('products.stock.availability');
+
+        Route::scopeBindings()->controller(ProductImageController::class)->group(function () {
+            Route::post('products/{product}/images', 'store')->name('products.images.store');
+            Route::patch('products/{product}/images/{image}', 'update')->name('products.images.update');
+            Route::patch('products/{product}/images/{image}/move/{direction}', 'move')
+                ->whereIn('direction', ['up', 'down', 'first'])
+                ->name('products.images.move');
+            Route::delete('products/{product}/images/{image}', 'destroy')->name('products.images.destroy');
+        });
     });
