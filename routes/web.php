@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductImageController;
 use App\Http\Controllers\Admin\ProductStockController;
@@ -33,6 +34,9 @@ Route::middleware(['auth', 'admin'])
 
         Route::resource('brands', BrandController::class)->except('show');
         Route::patch('brands/{brand}/status', [BrandController::class, 'updateStatus'])->name('brands.status');
+
+        Route::resource('customers', CustomerController::class);
+        Route::patch('customers/{customer}/status', [CustomerController::class, 'updateStatus'])->name('customers.status');
 
         Route::resource('products', ProductController::class);
         Route::patch('products/{product}/status', [ProductController::class, 'updateStatus'])->name('products.status');

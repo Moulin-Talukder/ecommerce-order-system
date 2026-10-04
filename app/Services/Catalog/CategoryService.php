@@ -2,7 +2,7 @@
 
 namespace App\Services\Catalog;
 
-use App\Exceptions\Catalog\CannotDeleteException;
+use App\Exceptions\CannotDeleteException;
 use App\Exceptions\Catalog\InvalidCategoryParentException;
 use App\Models\Category;
 use App\Support\Slug;

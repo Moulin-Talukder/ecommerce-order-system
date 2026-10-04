@@ -4,7 +4,7 @@ namespace App\Services\Catalog;
 
 use App\Enums\ProductStatus;
 use App\Enums\StockMovementType;
-use App\Exceptions\Catalog\CannotDeleteException;
+use App\Exceptions\CannotDeleteException;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Inventory\StockService;

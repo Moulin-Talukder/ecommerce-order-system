@@ -2,7 +2,7 @@
 
 namespace App\Services\Catalog;
 
-use App\Exceptions\Catalog\CannotDeleteException;
+use App\Exceptions\CannotDeleteException;
 use App\Models\Brand;
 use App\Support\Slug;
 use Illuminate\Database\QueryException;
