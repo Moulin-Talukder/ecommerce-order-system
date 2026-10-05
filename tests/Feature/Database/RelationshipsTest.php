@@ -63,7 +63,7 @@ class RelationshipsTest extends TestCase
         Order::factory()->create();
 
         $this->assertCount(3, $customer->orders);
-        $this->assertTrue($customer->orders->first()->customer->is($customer));
+        $this->assertTrue($customer->orders()->with('customer')->first()->customer->is($customer));
     }
 
     public function test_order_items_link_orders_and_products(): void
@@ -74,8 +74,8 @@ class RelationshipsTest extends TestCase
         OrderItem::factory()->for($order)->create();
 
         $this->assertCount(2, $order->items);
-        $this->assertTrue($order->items->first()->product->is($product));
-        $this->assertTrue($product->orderItems->first()->order->is($order));
+        $this->assertTrue($order->items()->with('product')->first()->product->is($product));
+        $this->assertTrue($product->orderItems()->with('order')->first()->order->is($order));
     }
 
     public function test_status_histories_form_a_chronological_timeline(): void
@@ -85,7 +85,7 @@ class RelationshipsTest extends TestCase
         OrderStatusHistory::factory()->for($order)->transition(null, OrderStatus::Pending)->create(['created_at' => now()->subHour()]);
         OrderStatusHistory::factory()->for($order)->transition(OrderStatus::Pending, OrderStatus::Confirmed)->create(['changed_by' => $user->id]);
 
-        $timeline = $order->statusHistories;
+        $timeline = $order->statusHistories()->with('changedBy')->get();
 
         $this->assertSame([null, OrderStatus::Pending], [$timeline[0]->old_status, $timeline[0]->new_status]);
         $this->assertSame(OrderStatus::Confirmed, $timeline[1]->new_status);
@@ -101,7 +101,7 @@ class RelationshipsTest extends TestCase
         Payment::factory()->for($order)->refund()->create(['amount' => '100.00']);
 
         $this->assertCount(2, $order->payments);
-        $this->assertTrue($order->payments->first()->recordedBy->is($user));
+        $this->assertTrue($order->payments()->with('recordedBy')->first()->recordedBy->is($user));
     }
 
     public function test_latest_shipment_is_the_most_recent_booking(): void

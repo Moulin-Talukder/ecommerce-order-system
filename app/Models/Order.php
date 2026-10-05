@@ -73,6 +73,15 @@ class Order extends Model
     }
 
     /**
+     * Admin URLs use the (random, customer-facing) order number rather than
+     * the sequential id, so order volume is not exposed.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'order_number';
+    }
+
+    /**
      * Amount still owed (e.g. the cash-on-delivery amount for the courier).
      */
     public function amountDue(): string

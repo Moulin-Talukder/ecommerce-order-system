@@ -7,8 +7,34 @@
         @endcan
     </x-admin.page-header>
 
+    {{-- Operational queues --}}
+    <nav class="mb-4 flex flex-wrap gap-2" aria-label="Order queues">
+        <a href="{{ route('admin.orders.index') }}"
+            @class(['rounded-full px-3 py-1 text-sm', 'bg-gray-900 text-white' => ! $filters['view'] && ! $isFiltered, 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' => $filters['view'] || $isFiltered])>All</a>
+        @foreach (App\Services\Orders\OrderSearch::VIEWS as $key => $label)
+            <a href="{{ route('admin.orders.index', ['view' => $key]) }}"
+                @if ($filters['view'] === $key) aria-current="page" @endif
+                @class(['rounded-full px-3 py-1 text-sm', 'bg-gray-900 text-white' => $filters['view'] === $key, 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' => $filters['view'] !== $key])>
+                {{ $label }} <span class="tabular-nums opacity-70">{{ $viewCounts[$key] }}</span>
+            </a>
+        @endforeach
+    </nav>
+
+    @if ($filteredCustomer)
+        <p class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900">
+            Showing orders from <a href="{{ route('admin.customers.show', $filteredCustomer) }}" class="font-medium underline">{{ $filteredCustomer->name }}</a>.
+            <a href="{{ route('admin.orders.index', Arr::except(request()->query(), ['customer', 'page'])) }}" class="ml-2 underline">Show all customers</a>
+        </p>
+    @endif
+
     <form method="GET" action="{{ route('admin.orders.index') }}" class="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         @php($filterClass = 'block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900')
+        @if ($filters['view'])
+            <input type="hidden" name="view" value="{{ $filters['view'] }}">
+        @endif
+        @if ($filters['customer'])
+            <input type="hidden" name="customer" value="{{ $filters['customer'] }}">
+        @endif
         <div class="lg:col-span-2">
             <label for="search" class="sr-only">Search</label>
             <input id="search" name="search" type="search" value="{{ $filters['search'] }}" placeholder="Order number, customer name or phone…" class="{{ $filterClass }}">
@@ -46,7 +72,15 @@
             <label for="to" class="sr-only">To</label>
             <input id="to" name="to" type="date" value="{{ $filters['to']?->format('Y-m-d') }}" class="{{ $filterClass }}" title="To date">
         </div>
-        <div class="flex items-center gap-3 lg:col-span-6">
+        <div>
+            <label for="courier" class="sr-only">Courier</label>
+            <select id="courier" name="courier" class="{{ $filterClass }}">
+                <option value="">Any courier state</option>
+                <option value="not_booked" @selected($filters['courier'] === 'not_booked')>Not booked with courier</option>
+                <option value="booked" @selected($filters['courier'] === 'booked')>Booked with courier</option>
+            </select>
+        </div>
+        <div class="flex items-center gap-3 lg:col-span-5">
             <x-admin.button variant="secondary">Filter</x-admin.button>
             @if ($isFiltered)
                 <a href="{{ route('admin.orders.index') }}" class="text-sm text-gray-600 underline hover:text-gray-900">Clear filters</a>

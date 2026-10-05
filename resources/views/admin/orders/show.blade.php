@@ -97,26 +97,46 @@
                 @endif
             </section>
 
-            {{-- Status history --}}
+            {{-- Customer history: helps judge COD risk before confirming --}}
             <section class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-sm font-semibold text-gray-900">Status history</h2>
-                <ol class="mt-4 space-y-3 border-l border-gray-200 pl-4 text-sm">
-                    @foreach ($order->statusHistories as $history)
-                        <li>
-                            <div class="text-gray-900">
-                                @if ($history->old_status)
-                                    {{ $history->old_status->label() }} → <strong>{{ $history->new_status->label() }}</strong>
-                                @else
-                                    <strong>{{ $history->new_status->label() }}</strong>
-                                @endif
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                {{ $history->created_at->format('d M Y, h:i A') }} · {{ $history->changedBy?->name ?? 'System' }}
-                                @if ($history->note) · {{ $history->note }} @endif
-                            </div>
-                        </li>
-                    @endforeach
-                </ol>
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 class="text-sm font-semibold text-gray-900">Customer history</h2>
+                    @if ($customerSummary['orders_count'] > 1)
+                        <a href="{{ route('admin.orders.index', ['customer' => $order->customer_id]) }}" class="text-xs text-gray-600 underline hover:text-gray-900">All {{ $customerSummary['orders_count'] }} orders from this customer</a>
+                    @endif
+                </div>
+                <dl class="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                    <div><dt class="text-xs text-gray-500">Orders</dt><dd class="tabular-nums text-gray-900">{{ $customerSummary['orders_count'] }}</dd></div>
+                    <div><dt class="text-xs text-gray-500">Delivered</dt><dd class="tabular-nums text-gray-900">{{ $customerSummary['completed_orders_count'] }}</dd></div>
+                    <div>
+                        <dt class="text-xs text-gray-500">Cancelled / returned</dt>
+                        <dd @class(['tabular-nums', 'font-semibold text-red-700' => $customerSummary['cancelled_or_returned_count'] > 0, 'text-gray-900' => $customerSummary['cancelled_or_returned_count'] === 0])>{{ $customerSummary['cancelled_or_returned_count'] }}</dd>
+                    </div>
+                    <div><dt class="text-xs text-gray-500">Total spent</dt><dd class="tabular-nums text-gray-900">{{ App\Support\Money::format($customerSummary['total_spent']) }}</dd></div>
+                </dl>
+                @if ($order->customer->status === App\Enums\CustomerStatus::Blocked)
+                    <p class="mt-3 text-sm font-medium text-red-700">This customer is now blocked from placing new orders.</p>
+                @endif
+                @if ($otherOrders->isNotEmpty())
+                    <ul class="mt-4 divide-y divide-gray-100 border-t border-gray-100 text-sm">
+                        @foreach ($otherOrders as $other)
+                            <li class="flex items-center justify-between gap-3 py-2">
+                                <a href="{{ route('admin.orders.show', $other) }}" class="font-mono text-xs text-gray-900 hover:underline">{{ $other->order_number }}</a>
+                                <span class="text-xs text-gray-500">{{ $other->created_at->format('d M Y') }}</span>
+                                <span class="tabular-nums text-gray-700">{{ App\Support\Money::format($other->total, $other->currency) }}</span>
+                                <x-admin.order-status-badge :status="$other->status" />
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="mt-3 text-sm text-gray-500">This is the customer's first order.</p>
+                @endif
+            </section>
+
+            {{-- Timeline: status changes and payments in order --}}
+            <section class="rounded-lg border border-gray-200 bg-white p-6">
+                <h2 class="mb-4 text-sm font-semibold text-gray-900">Timeline</h2>
+                <x-admin.order-timeline :entries="$timeline" />
             </section>
 
             {{-- Stock movements caused by this order --}}

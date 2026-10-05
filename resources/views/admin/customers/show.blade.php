@@ -34,7 +34,10 @@
                 <div class="flex items-baseline justify-between border-b border-gray-100 px-6 py-4">
                     <h2 class="text-sm font-semibold text-gray-900">Order history</h2>
                     @if ($summary['last_order_at'])
-                        <span class="text-xs text-gray-500">Last order {{ $summary['last_order_at']->format('d M Y') }}</span>
+                        <span class="text-xs text-gray-500">
+                            Last order {{ $summary['last_order_at']->format('d M Y') }}
+                            · <a href="{{ route('admin.orders.index', ['customer' => $customer->id]) }}" class="underline hover:text-gray-900">Open in order list</a>
+                        </span>
                     @endif
                 </div>
 

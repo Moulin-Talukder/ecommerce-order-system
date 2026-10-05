@@ -5,9 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Orders\CreateOrder;
 use App\Actions\Orders\UpdateOrderDetails;
 use App\Enums\OrderSource;
-use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
-use App\Enums\PaymentStatus;
 use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreOrderRequest;
@@ -15,41 +13,27 @@ use App\Http\Requests\Admin\UpdateOrderDetailsRequest;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\Customers\CustomerService;
+use App\Services\Orders\OrderSearch;
+use App\Services\Orders\OrderTimeline;
 use App\Services\Orders\PaymentLedger;
-use App\Support\Like;
-use App\Support\PhoneNumber;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
-use Throwable;
 
 class OrderController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, OrderSearch $search): View
     {
         Gate::authorize('viewAny', Order::class);
 
-        $filters = [
-            'search' => trim((string) $request->query('search', '')),
-            'status' => OrderStatus::tryFrom((string) $request->query('status')),
-            'payment_status' => PaymentStatus::tryFrom((string) $request->query('payment_status')),
-            'source' => OrderSource::tryFrom((string) $request->query('source')),
-            'from' => $this->date($request->query('from')),
-            'to' => $this->date($request->query('to')),
-        ];
+        $filters = $search->filters($request->query());
 
-        $orders = Order::query()
+        $orders = $search->query($filters)
             ->withCount('items')
-            ->when($filters['search'] !== '', fn (Builder $query) => $this->applySearch($query, $filters['search']))
-            ->when($filters['status'], fn (Builder $query, OrderStatus $status) => $query->where('status', $status))
-            ->when($filters['payment_status'], fn (Builder $query, PaymentStatus $status) => $query->where('payment_status', $status))
-            ->when($filters['source'], fn (Builder $query, OrderSource $source) => $query->where('source', $source))
-            ->when($filters['from'], fn (Builder $query, Carbon $from) => $query->where('created_at', '>=', $from->startOfDay()))
-            ->when($filters['to'], fn (Builder $query, Carbon $to) => $query->where('created_at', '<=', $to->endOfDay()))
-            ->latest('id')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(25)
             ->withQueryString();
 
@@ -57,6 +41,8 @@ class OrderController extends Controller
             'orders' => $orders,
             'filters' => $filters,
             'isFiltered' => array_filter($filters) !== [],
+            'viewCounts' => $search->viewCounts(),
+            'filteredCustomer' => $filters['customer'] ? Customer::query()->find($filters['customer'], ['id', 'name']) : null,
         ]);
     }
 
@@ -87,7 +73,7 @@ class OrderController extends Controller
         return to_route('admin.orders.show', $order)->with('success', "Order {$order->order_number} placed.");
     }
 
-    public function show(Order $order, PaymentLedger $ledger): View
+    public function show(Order $order, PaymentLedger $ledger, OrderTimeline $timeline, CustomerService $customers): View
     {
         Gate::authorize('view', $order);
 
@@ -104,6 +90,13 @@ class OrderController extends Controller
 
         return view('admin.orders.show', [
             'order' => $order,
+            'timeline' => $timeline->for($order),
+            'customerSummary' => $customers->summary($order->customer),
+            'otherOrders' => $order->customer->orders()
+                ->whereKeyNot($order->id)
+                ->latest('id')
+                ->limit(5)
+                ->get(['id', 'order_number', 'total', 'currency', 'status', 'created_at']),
             'ledger' => $ledger->totals($order),
             'itemsGross' => $order->items->reduce(fn (string $sum, $item) => bcadd($sum, bcmul($item->unit_price, (string) $item->quantity, 2), 2), '0.00'),
             'itemDiscounts' => $order->items->reduce(fn (string $sum, $item) => bcadd($sum, $item->discount_amount, 2), '0.00'),
@@ -122,41 +115,5 @@ class OrderController extends Controller
         $updateDetails->handle($order, $request->validated());
 
         return to_route('admin.orders.show', $order)->with('success', "Order {$order->order_number} updated.");
-    }
-
-    /**
-     * Order number / customer name substring, or phone (exact when a full
-     * number is typed, otherwise a digit fragment).
-     *
-     * @param  Builder<Order>  $query
-     */
-    private function applySearch(Builder $query, string $search): void
-    {
-        $phone = PhoneNumber::normalize($search);
-        $digits = preg_replace('/\D+/', '', $search);
-
-        $query->where(function (Builder $query) use ($search, $phone, $digits): void {
-            $query->where('order_number', 'like', Like::contains($search))
-                ->orWhere('customer_name', 'like', Like::contains($search));
-
-            if ($phone !== null) {
-                $query->orWhere('customer_phone', $phone);
-            } elseif (strlen($digits) >= 4) {
-                $query->orWhere('customer_phone', 'like', Like::contains($digits));
-            }
-        });
-    }
-
-    private function date(mixed $value): ?Carbon
-    {
-        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
-            return null;
-        }
-
-        try {
-            return Carbon::createFromFormat('Y-m-d', $value);
-        } catch (Throwable) {
-            return null;
-        }
     }
 }
