@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\Orders\CreateOrder;
 use App\Actions\Orders\UpdateOrderDetails;
+use App\Enums\CourierProvider;
 use App\Enums\OrderSource;
 use App\Enums\PaymentMethod;
 use App\Enums\ProductStatus;
@@ -13,6 +14,7 @@ use App\Http\Requests\Admin\UpdateOrderDetailsRequest;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\Courier\CourierRegistry;
 use App\Services\Customers\CustomerService;
 use App\Services\Orders\OrderSearch;
 use App\Services\Orders\OrderTimeline;
@@ -32,6 +34,10 @@ class OrderController extends Controller
 
         $orders = $search->query($filters)
             ->withCount('items')
+            ->with(['latestShipment' => fn ($query) => $query->select([
+                'courier_shipments.id', 'courier_shipments.order_id', 'courier_shipments.courier',
+                'courier_shipments.consignment_id', 'courier_shipments.status',
+            ])])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(25)
@@ -73,7 +79,7 @@ class OrderController extends Controller
         return to_route('admin.orders.show', $order)->with('success', "Order {$order->order_number} placed.");
     }
 
-    public function show(Order $order, PaymentLedger $ledger, OrderTimeline $timeline, CustomerService $customers): View
+    public function show(Order $order, PaymentLedger $ledger, OrderTimeline $timeline, CustomerService $customers, CourierRegistry $couriers): View
     {
         Gate::authorize('view', $order);
 
@@ -85,6 +91,8 @@ class OrderController extends Controller
             'payments' => fn ($query) => $query->latest('id'),
             'payments.recordedBy:id,name',
             'stockMovements' => fn ($query) => $query->orderBy('id'),
+            'shipments' => fn ($query) => $query->latest('id'),
+            'shipments.submittedBy:id,name',
             'stockMovements.product:id,name,sku',
         ]);
 
@@ -98,6 +106,7 @@ class OrderController extends Controller
                 ->limit(5)
                 ->get(['id', 'order_number', 'total', 'currency', 'status', 'created_at']),
             'ledger' => $ledger->totals($order),
+            'courierConfigured' => $couriers->gateway(CourierProvider::Steadfast)->isConfigured(),
             'itemsGross' => $order->items->reduce(fn (string $sum, $item) => bcadd($sum, bcmul($item->unit_price, (string) $item->quantity, 2), 2), '0.00'),
             'itemDiscounts' => $order->items->reduce(fn (string $sum, $item) => bcadd($sum, $item->discount_amount, 2), '0.00'),
         ]);

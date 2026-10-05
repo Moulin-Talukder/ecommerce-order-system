@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\OrderCourierController;
 use App\Http\Controllers\Admin\OrderPaymentController;
 use App\Http\Controllers\Admin\OrderStatusController;
 use App\Http\Controllers\Admin\ProductController;
@@ -42,6 +43,8 @@ Route::middleware(['auth', 'admin'])
         Route::patch('orders/{order}/status', [OrderStatusController::class, 'update'])->name('orders.status');
         Route::post('orders/{order}/payments', [OrderPaymentController::class, 'store'])->name('orders.payments.store');
         Route::post('orders/{order}/refunds', [OrderPaymentController::class, 'refund'])->name('orders.refunds.store');
+        Route::post('orders/{order}/courier', [OrderCourierController::class, 'book'])->name('orders.courier.book');
+        Route::post('orders/{order}/courier/sync', [OrderCourierController::class, 'sync'])->name('orders.courier.sync');
 
         Route::resource('customers', CustomerController::class);
         Route::patch('customers/{customer}/status', [CustomerController::class, 'updateStatus'])->name('customers.status');

@@ -9,7 +9,7 @@ use App\Models\User;
 /**
  * - View orders and the dashboard sales summary: every admin-panel role.
  * - Create orders, edit delivery details/notes, change status, record
- *   payments: Super Admin, Admin, Manager.
+ *   payments, book/sync courier shipments: Super Admin, Admin, Manager.
  * - Record refunds (money leaving the business): Super Admin, Admin.
  * - Delete: nobody. Orders are permanent; cancel instead.
  */
@@ -51,6 +51,22 @@ class OrderPolicy
     }
 
     public function recordPayment(User $user, Order $order): bool
+    {
+        return $this->canOperate($user);
+    }
+
+    /**
+     * Book the order with a courier (sends data to the courier's API).
+     */
+    public function bookCourier(User $user, Order $order): bool
+    {
+        return $this->canOperate($user);
+    }
+
+    /**
+     * Refresh the courier status / confirm an uncertain booking.
+     */
+    public function syncCourier(User $user, Order $order): bool
     {
         return $this->canOperate($user);
     }

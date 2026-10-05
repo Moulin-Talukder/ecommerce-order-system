@@ -117,7 +117,12 @@
                             <x-admin.payment-status-badge :status="$order->payment_status" />
                             <div class="mt-0.5 text-xs text-gray-500">{{ $order->payment_method->label() }}</div>
                         </td>
-                        <td class="px-4 py-3"><x-admin.order-status-badge :status="$order->status" /></td>
+                        <td class="px-4 py-3">
+                            <x-admin.order-status-badge :status="$order->status" />
+                            @if ($order->latestShipment)
+                                <div class="mt-0.5 text-xs text-gray-500">Courier: {{ $order->latestShipment->statusLabel() }}</div>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>

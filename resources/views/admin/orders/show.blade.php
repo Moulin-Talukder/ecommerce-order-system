@@ -196,6 +196,67 @@
                 </section>
             @endcan
 
+            {{-- Courier (Steadfast) --}}
+            @php($shipment = $order->shipments->first())
+            <section class="rounded-lg border border-gray-200 bg-white p-6" id="courier">
+                <h2 class="text-sm font-semibold text-gray-900">Courier · Steadfast</h2>
+
+                @if ($shipment)
+                    <dl class="mt-3 space-y-1 text-sm">
+                        <div class="flex justify-between gap-2"><dt class="text-gray-500">Courier status</dt>
+                            <dd @class(['text-right font-medium', 'text-red-700' => $shipment->isBookingFailed(), 'text-yellow-700' => $shipment->isBookingPending(), 'text-gray-900' => $shipment->isBooked()])>{{ $shipment->statusLabel() }}</dd></div>
+                        @if ($shipment->isBooked())
+                            <div class="flex justify-between gap-2"><dt class="text-gray-500">Raw status</dt><dd class="font-mono text-xs">{{ $shipment->status }}</dd></div>
+                        @endif
+                        <div class="flex justify-between gap-2"><dt class="text-gray-500">Invoice</dt><dd class="font-mono text-xs">{{ $shipment->invoice }}</dd></div>
+                        <div class="flex justify-between gap-2"><dt class="text-gray-500">Consignment ID</dt><dd class="font-mono text-xs">{{ $shipment->consignment_id ?? '—' }}</dd></div>
+                        <div class="flex justify-between gap-2"><dt class="text-gray-500">Tracking code</dt><dd class="font-mono text-xs">{{ $shipment->tracking_code ?? '—' }}</dd></div>
+                        <div class="flex justify-between gap-2"><dt class="text-gray-500">COD to collect</dt><dd class="tabular-nums">{{ $money($shipment->cod_amount) }}</dd></div>
+                        @if ($shipment->delivery_fee !== null)
+                            <div class="flex justify-between gap-2"><dt class="text-gray-500">Delivery fee</dt><dd class="tabular-nums">{{ $money($shipment->delivery_fee) }}</dd></div>
+                        @endif
+                        <div class="flex justify-between gap-2"><dt class="text-gray-500">Booked</dt><dd class="text-right text-xs">{{ $shipment->submitted_at?->format('d M Y, h:i A') ?? '—' }}{{ $shipment->submittedBy ? ' · '.$shipment->submittedBy->name : '' }}</dd></div>
+                        <div class="flex justify-between gap-2"><dt class="text-gray-500">Last synced</dt><dd class="text-right text-xs">{{ $shipment->last_synced_at?->format('d M Y, h:i A') ?? 'Never' }}</dd></div>
+                    </dl>
+                    @if ($shipment->last_error)
+                        <p class="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-800">{{ $shipment->last_error }}</p>
+                    @endif
+                    @if ($shipment->isBooked() && in_array(App\Enums\SteadfastStatus::tryFrom($shipment->status), [App\Enums\SteadfastStatus::Delivered, App\Enums\SteadfastStatus::PartialDelivered, App\Enums\SteadfastStatus::Cancelled], true) && ! $order->status->isFinal() && $order->status !== App\Enums\OrderStatus::Delivered)
+                        <p class="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-900">Steadfast reports this parcel as {{ strtolower($shipment->statusLabel()) }}. Update the order status (and record the COD payment) when confirmed.</p>
+                    @endif
+                @else
+                    <p class="mt-2 text-sm text-gray-600">Not booked yet.</p>
+                @endif
+
+                @unless ($courierConfigured)
+                    <p class="mt-3 text-xs text-yellow-800">Steadfast is not configured on this server (missing API credentials).</p>
+                @endunless
+
+                @if ($courierConfigured)
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        @can('bookCourier', $order)
+                            @if ($order->status === App\Enums\OrderStatus::Processing && (! $shipment || $shipment->isBookingFailed()))
+                                <form method="POST" action="{{ route('admin.orders.courier.book', $order) }}"
+                                    onsubmit="this.querySelector('button').disabled = true; return confirm('Book this order with Steadfast? COD {{ $money($order->amountDue()) }}');">
+                                    @csrf
+                                    <x-admin.button>{{ $shipment ? 'Retry booking' : 'Book with Steadfast' }}</x-admin.button>
+                                </form>
+                            @elseif (! $shipment && $order->status !== App\Enums\OrderStatus::Processing)
+                                <p class="text-xs text-gray-500">Move the order to Processing (packed) to book it with the courier.</p>
+                            @endif
+                        @endcan
+                        @can('syncCourier', $order)
+                            @if ($shipment && ! $shipment->isBookingFailed())
+                                <form method="POST" action="{{ route('admin.orders.courier.sync', $order) }}">
+                                    @csrf
+                                    <x-admin.button variant="secondary">{{ $shipment->isBookingPending() ? 'Check booking' : 'Sync status' }}</x-admin.button>
+                                </form>
+                            @endif
+                        @endcan
+                    </div>
+                @endif
+            </section>
+
             {{-- Payments --}}
             <section class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-sm font-semibold text-gray-900">Payment</h2>

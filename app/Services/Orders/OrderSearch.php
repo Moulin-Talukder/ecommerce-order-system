@@ -68,8 +68,8 @@ class OrderSearch
             ->when($filters['status'], fn (Builder $query, OrderStatus $status) => $query->where('status', $status))
             ->when($filters['payment_status'], fn (Builder $query, PaymentStatus $status) => $query->where('payment_status', $status))
             ->when($filters['source'], fn (Builder $query, OrderSource $source) => $query->where('source', $source))
-            ->when($filters['courier'] === 'booked', fn (Builder $query) => $query->whereHas('shipments'))
-            ->when($filters['courier'] === 'not_booked', fn (Builder $query) => $query->whereDoesntHave('shipments'))
+            ->when($filters['courier'] === 'booked', fn (Builder $query) => $query->whereHas('shipments', fn (Builder $query) => $query->booked()))
+            ->when($filters['courier'] === 'not_booked', fn (Builder $query) => $query->whereDoesntHave('shipments', fn (Builder $query) => $query->booked()))
             ->when($filters['customer'], fn (Builder $query, int $customerId) => $query->where('customer_id', $customerId))
             ->when($filters['from'], fn (Builder $query, Carbon $from) => $query->where('created_at', '>=', $from->copy()->startOfDay()))
             ->when($filters['to'], fn (Builder $query, Carbon $to) => $query->where('created_at', '<=', $to->copy()->endOfDay()));
@@ -122,7 +122,7 @@ class OrderSearch
         return match ($view) {
             'needs_confirmation' => $query->where('status', OrderStatus::Pending),
             'to_fulfil' => $query->whereIn('status', [OrderStatus::Confirmed, OrderStatus::Processing]),
-            'ready_for_courier' => $query->where('status', OrderStatus::Processing)->whereDoesntHave('shipments'),
+            'ready_for_courier' => $query->where('status', OrderStatus::Processing)->whereDoesntHave('shipments', fn (Builder $query) => $query->booked()),
             'in_transit' => $query->where('status', OrderStatus::Shipped),
             'awaiting_payment' => $query->where('status', OrderStatus::Delivered)->whereIn('payment_status', $this->unpaidStatuses()),
             'completed' => $query->where('status', OrderStatus::Delivered)->where('payment_status', PaymentStatus::Paid),
