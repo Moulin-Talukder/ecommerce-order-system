@@ -46,10 +46,7 @@ class ProductController extends Controller
             ->when($filters['category'], fn ($query, int $id) => $query->whereIn('category_id', $tree->selfAndDescendantIds($id)))
             ->when($filters['brand'], fn ($query, int $id) => $query->where('brand_id', $id))
             ->when($filters['status'], fn ($query, ProductStatus $status) => $query->where('status', $status))
-            ->when($filters['stock'] === 'low', fn ($query) => $query
-                ->where('manage_stock', true)
-                ->whereNotNull('low_stock_threshold')
-                ->whereColumn('stock_quantity', '<=', 'low_stock_threshold'))
+            ->when($filters['stock'] === 'low', fn ($query) => $query->lowStock())
             ->when(in_array($filters['stock'], ['in_stock', 'out_of_stock'], true), fn ($query) => $query->where('stock_status', StockStatus::from($filters['stock'])))
             ->latest('id')
             ->paginate(25)

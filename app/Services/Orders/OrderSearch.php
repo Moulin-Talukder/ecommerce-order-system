@@ -8,9 +8,9 @@ use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Support\Like;
 use App\Support\PhoneNumber;
+use App\Support\StrictDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
-use Throwable;
 
 /**
  * Order list filtering, shared by the admin list (and a future API).
@@ -51,8 +51,8 @@ class OrderSearch
             'source' => OrderSource::tryFrom((string) ($input['source'] ?? '')),
             'courier' => in_array($input['courier'] ?? null, ['booked', 'not_booked'], true) ? $input['courier'] : null,
             'customer' => filter_var($input['customer'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null,
-            'from' => $this->date($input['from'] ?? null),
-            'to' => $this->date($input['to'] ?? null),
+            'from' => StrictDate::parse($input['from'] ?? null),
+            'to' => StrictDate::parse($input['to'] ?? null),
         ];
     }
 
@@ -95,12 +95,22 @@ class OrderSearch
         return [
             'needs_confirmation' => $count([OrderStatus::Pending]),
             'to_fulfil' => $count([OrderStatus::Confirmed, OrderStatus::Processing]),
-            'ready_for_courier' => $this->applyView(Order::query(), 'ready_for_courier')->count(),
+            'ready_for_courier' => $this->viewQuery('ready_for_courier')->count(),
             'in_transit' => $count([OrderStatus::Shipped]),
             'awaiting_payment' => $count([OrderStatus::Delivered], $this->unpaidStatuses()),
             'completed' => $count([OrderStatus::Delivered], [PaymentStatus::Paid]),
             'closed' => $count([OrderStatus::Cancelled, OrderStatus::Returned]),
         ];
+    }
+
+    /**
+     * A fresh query for one queue, so other screens reuse the queue definitions.
+     *
+     * @return Builder<Order>
+     */
+    public function viewQuery(string $view): Builder
+    {
+        return $this->applyView(Order::query(), $view);
     }
 
     /**
@@ -157,21 +167,5 @@ class OrderSearch
                 $query->orWhere('customer_phone', 'like', Like::contains($digits));
             }
         });
-    }
-
-    private function date(mixed $value): ?Carbon
-    {
-        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
-            return null;
-        }
-
-        try {
-            $date = Carbon::createFromFormat('!Y-m-d', $value);
-        } catch (Throwable) {
-            return null;
-        }
-
-        // Reject impossible dates such as 2026-13-45 instead of letting them overflow.
-        return $date->format('Y-m-d') === $value ? $date : null;
     }
 }

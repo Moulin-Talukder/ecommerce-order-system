@@ -6,6 +6,8 @@ use App\Enums\ProductStatus;
 use App\Enums\StockStatus;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -97,6 +99,32 @@ class Product extends Model
         return $this->manage_stock
             && $this->low_stock_threshold !== null
             && $this->stock_quantity <= $this->low_stock_threshold;
+    }
+
+    /**
+     * SQL counterpart of {@see self::isLowStock()}.
+     *
+     * @param  Builder<Product>  $query
+     */
+    #[Scope]
+    protected function lowStock(Builder $query): void
+    {
+        $query->where('manage_stock', true)
+            ->whereNotNull('low_stock_threshold')
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
+    }
+
+    /**
+     * Products that are low on stock or out of stock (tracked or manually marked).
+     *
+     * @param  Builder<Product>  $query
+     */
+    #[Scope]
+    protected function needsRestock(Builder $query): void
+    {
+        $query->where(fn (Builder $query) => $query
+            ->where('stock_status', StockStatus::OutOfStock)
+            ->orWhere(fn (Builder $query) => $query->lowStock()));
     }
 
     /**

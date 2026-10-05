@@ -7,7 +7,7 @@ use App\Models\Order;
 use App\Models\User;
 
 /**
- * - View orders: every admin-panel role.
+ * - View orders and the dashboard sales summary: every admin-panel role.
  * - Create orders, edit delivery details/notes, change status, record
  *   payments: Super Admin, Admin, Manager.
  * - Record refunds (money leaving the business): Super Admin, Admin.
@@ -21,6 +21,16 @@ class OrderPolicy
     }
 
     public function view(User $user, Order $order): bool
+    {
+        return $user->canAccessAdmin();
+    }
+
+    /**
+     * Aggregated money figures (sales, collections, outstanding amounts) on
+     * the dashboard. Every admin role can already see individual order
+     * totals, so this currently matches viewAny; restrict it here if needed.
+     */
+    public function viewSalesSummary(User $user): bool
     {
         return $user->canAccessAdmin();
     }
