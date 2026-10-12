@@ -41,6 +41,16 @@ final class PhoneNumber
         return preg_match(self::PATTERN, $digits) ? $digits : null;
     }
 
+    /**
+     * Show only the operator prefix and last three digits, e.g. "017•••••678".
+     */
+    public static function mask(?string $phone): string
+    {
+        $phone = (string) $phone;
+
+        return strlen($phone) > 6 ? substr($phone, 0, 3).str_repeat('•', strlen($phone) - 6).substr($phone, -3) : '•••';
+    }
+
     public static function isValid(?string $phone): bool
     {
         return self::normalize($phone) !== null;

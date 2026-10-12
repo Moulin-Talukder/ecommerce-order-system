@@ -176,6 +176,19 @@ final class CategoryTree
     }
 
     /**
+     * Ids of every category that is visible on the storefront.
+     *
+     * @return list<int>
+     */
+    public function effectivelyActiveIds(): array
+    {
+        return $this->categories->keys()
+            ->filter(fn (int $id) => $this->isEffectivelyActive($id))
+            ->values()
+            ->all();
+    }
+
+    /**
      * Categories a product may be assigned to: effectively active ones, plus
      * $alwaysInclude (a product's current category) even if it is inactive.
      *

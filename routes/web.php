@@ -10,10 +10,27 @@ use App\Http\Controllers\Admin\OrderStatusController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductImageController;
 use App\Http\Controllers\Admin\ProductStockController;
+use App\Http\Controllers\Storefront\CartController;
+use App\Http\Controllers\Storefront\CatalogController;
+use App\Http\Controllers\Storefront\CheckoutController;
+use App\Http\Controllers\Storefront\OrderConfirmationController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
+/*
+|--------------------------------------------------------------------------
+| Customer storefront (guest)
+|--------------------------------------------------------------------------
+*/
+
+Route::name('storefront.')->group(function () {
+    Route::get('/', [CatalogController::class, 'index'])->name('home');
+    Route::get('categories/{slug}', [CatalogController::class, 'category'])->name('category');
+    Route::get('products/{slug}', [CatalogController::class, 'product'])->name('product');
+    Route::livewire('cart', 'pages::storefront.cart')->name('cart');
+    Route::post('cart/items', [CartController::class, 'store'])->name('cart.add');
+    Route::get('checkout', [CheckoutController::class, 'show'])->name('checkout');
+    Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:storefront-checkout')->name('checkout.store');
+    Route::get('order/{orderNumber}/thank-you', [OrderConfirmationController::class, 'show'])->name('thank-you');
 });
 
 /*

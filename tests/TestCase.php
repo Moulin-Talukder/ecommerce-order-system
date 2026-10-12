@@ -27,6 +27,22 @@ abstract class TestCase extends BaseTestCase
         return $app;
     }
 
+    /**
+     * Each simulated HTTP request starts with fresh scoped singletons, as a
+     * real request does (PHP-FPM, and Octane, which flushes scoped instances).
+     *
+     * @param  array<string, mixed>  $parameters
+     * @param  array<string, mixed>  $cookies
+     * @param  array<string, mixed>  $files
+     * @param  array<string, mixed>  $server
+     */
+    public function call($method, $uri, $parameters = [], $cookies = [], $files = [], $server = [], $content = null)
+    {
+        $this->app->forgetScopedInstances();
+
+        return parent::call($method, $uri, $parameters, $cookies, $files, $server, $content);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
