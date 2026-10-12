@@ -175,8 +175,8 @@ class Cart
 
         return $this->catalog->visibleProducts()
             ->whereKey($ids)
-            ->select(['id', 'category_id', 'name', 'slug', 'sku', 'selling_price', 'discount_price', 'manage_stock', 'stock_quantity', 'stock_status', 'status'])
-            ->with('primaryImage')
+            ->select(['id', 'category_id', 'brand_id', 'name', 'slug', 'sku', 'selling_price', 'discount_price', 'manage_stock', 'stock_quantity', 'stock_status', 'status'])
+            ->with(['primaryImage', 'brand:id,name'])
             ->get()
             ->keyBy('id');
     }

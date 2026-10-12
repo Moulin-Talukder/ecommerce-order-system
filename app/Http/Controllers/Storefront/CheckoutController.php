@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\CheckoutRequest;
 use App\Services\Storefront\Cart;
 use App\Services\Storefront\CheckoutSession;
+use App\Services\Tracking\DataLayer;
+use App\Services\Tracking\EcommerceEvents;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +17,7 @@ use Illuminate\View\View;
 
 class CheckoutController extends Controller
 {
-    public function show(Cart $cart, CheckoutSession $checkout): View|RedirectResponse
+    public function show(Cart $cart, CheckoutSession $checkout, DataLayer $dataLayer, EcommerceEvents $events): View|RedirectResponse
     {
         $summary = $cart->summary();
 
@@ -24,6 +26,9 @@ class CheckoutController extends Controller
                 ? implode(' ', $summary->notices)
                 : 'Your cart is empty. Add a product before checking out.');
         }
+
+        // Once per distinct cart content, so reloads or a validation round-trip do not repeat it.
+        $dataLayer->pushWhenChanged('begin_checkout', hash('sha256', json_encode($cart->contents())), $events->beginCheckout($summary));
 
         // Server-calculated totals for each zone; the page only switches between them.
         $zoneTotals = collect(config('storefront.delivery_zones'))

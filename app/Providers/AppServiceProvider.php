@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\Storefront\Catalog;
+use App\Services\Tracking\DataLayer;
 use App\Support\PhoneNumber;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // One category tree per request for all storefront lookups.
         $this->app->scoped(Catalog::class);
+        $this->app->scoped(DataLayer::class);
     }
 
     /**

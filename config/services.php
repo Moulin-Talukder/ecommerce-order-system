@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    /*
+    | Google Tag Manager (storefront only). Leave empty to disable. Use a
+    | different container (or none) per environment so development, staging
+    | and automated tests never send traffic to the production container.
+    */
+    'gtm' => [
+        'container_id' => env('GTM_CONTAINER_ID'),
+    ],
+
 ];

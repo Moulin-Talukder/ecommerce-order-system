@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Storefront\Cart;
+use App\Services\Tracking\CartChangeTracker;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -11,28 +12,40 @@ use Livewire\Component;
  */
 new #[Layout('layouts::storefront')] #[Title('Your cart')] class extends Component
 {
-    public function increment(int $productId, Cart $cart): void
+    public function increment(int $productId, Cart $cart, CartChangeTracker $tracker): void
     {
-        $cart->update($productId, ($cart->contents()[$productId] ?? 0) + 1);
-        $this->dispatch('cart-updated');
+        $this->change($cart, $tracker, fn () => $cart->update($productId, ($cart->contents()[$productId] ?? 0) + 1));
     }
 
-    public function decrement(int $productId, Cart $cart): void
+    public function decrement(int $productId, Cart $cart, CartChangeTracker $tracker): void
     {
-        $cart->update($productId, ($cart->contents()[$productId] ?? 0) - 1);
-        $this->dispatch('cart-updated');
+        $this->change($cart, $tracker, fn () => $cart->update($productId, ($cart->contents()[$productId] ?? 0) - 1));
     }
 
-    public function remove(int $productId, Cart $cart): void
+    public function remove(int $productId, Cart $cart, CartChangeTracker $tracker): void
     {
-        $cart->remove($productId);
-        $this->dispatch('cart-updated');
+        $this->change($cart, $tracker, fn () => $cart->remove($productId));
     }
 
-    public function clear(Cart $cart): void
+    public function clear(Cart $cart, CartChangeTracker $tracker): void
     {
-        $cart->clear();
+        $this->change($cart, $tracker, fn () => $cart->clear());
+    }
+
+    /**
+     * Apply a cart operation, then report exactly what changed: the header
+     * badge refreshes, and add_to_cart / remove_from_cart events are sent
+     * only for quantities the server actually changed.
+     */
+    private function change(Cart $cart, CartChangeTracker $tracker, \Closure $operation): void
+    {
+        $before = $cart->contents();
+        $operation();
         $this->dispatch('cart-updated');
+
+        if ($events = $tracker->events($before, $cart->contents())) {
+            $this->dispatch('datalayer-push', events: $events);
+        }
     }
 
     public function with(Cart $cart): array

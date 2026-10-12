@@ -2,6 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-gray-50">
     <head>
         <meta charset="utf-8">
+        <x-tracking.gtm-head />
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ isset($title) && $title ? $title.' · ' : '' }}{{ config('app.name') }}</title>
         @isset($metaDescription)
@@ -13,6 +14,7 @@
         @livewireStyles
     </head>
     <body class="flex min-h-full flex-col font-sans text-gray-900 antialiased">
+        <x-tracking.gtm-noscript />
         <header class="border-b border-gray-200 bg-white">
             <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
                 <a href="{{ route('storefront.home') }}" class="text-lg font-semibold">{{ config('app.name') }}</a>
@@ -58,6 +60,7 @@
             </div>
         </footer>
 
+        <x-tracking.data-layer />
         @livewireScripts
     </body>
 </html>

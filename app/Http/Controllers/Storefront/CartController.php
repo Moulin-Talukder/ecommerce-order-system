@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Storefront;
 use App\Http\Controllers\Controller;
 use App\Services\Storefront\Cart;
 use App\Services\Storefront\Catalog;
+use App\Services\Tracking\CartChangeTracker;
+use App\Services\Tracking\DataLayer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -15,7 +17,7 @@ use Illuminate\Http\Request;
  */
 class CartController extends Controller
 {
-    public function store(Request $request, Catalog $catalog, Cart $cart): RedirectResponse
+    public function store(Request $request, Catalog $catalog, Cart $cart, CartChangeTracker $tracker, DataLayer $dataLayer): RedirectResponse
     {
         $validated = $request->validate([
             'product' => ['required', 'string', 'max:255'],
@@ -28,7 +30,12 @@ class CartController extends Controller
             return back()->with('error', 'Sorry, this product is not available.');
         }
 
+        $before = $cart->contents();
         $cart->add($product, (int) ($validated['quantity'] ?? 1));
+
+        foreach ($tracker->events($before, $cart->contents()) as $event) {
+            $dataLayer->flash($event);
+        }
 
         return back()->with('success', "“{$product->name}” was added to your cart.");
     }

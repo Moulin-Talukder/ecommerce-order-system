@@ -3,6 +3,7 @@
 use App\Exceptions\Storefront\CartException;
 use App\Services\Storefront\Cart;
 use App\Services\Storefront\Catalog;
+use App\Services\Tracking\CartChangeTracker;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -35,7 +36,7 @@ new class extends Component
         $this->quantity = max(1, $this->quantity - 1);
     }
 
-    public function add(Cart $cart, Catalog $catalog): void
+    public function add(Cart $cart, Catalog $catalog, CartChangeTracker $tracker): void
     {
         $this->reset('message', 'error');
         $product = $catalog->visibleProducts()->whereKey($this->productId)->first();
@@ -47,9 +48,15 @@ new class extends Component
         }
 
         try {
+            $before = $cart->contents();
             $inCart = $cart->add($product, max(1, min($this->quantity, (int) config('storefront.max_quantity_per_item'))));
             $this->message = "Added to cart ({$inCart} in your cart).";
             $this->dispatch('cart-updated');
+
+            // Only after the cart accepted the change, for the quantity actually added.
+            if ($events = $tracker->events($before, $cart->contents())) {
+                $this->dispatch('datalayer-push', events: $events);
+            }
         } catch (CartException $exception) {
             $this->error = $exception->getMessage();
         }

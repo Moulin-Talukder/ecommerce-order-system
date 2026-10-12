@@ -1,0 +1,16 @@
+{{--
+    Google Tag Manager container (storefront only). Placement per Google's
+    "Install a web container" guide: as high in <head> as possible, below the
+    dataLayer declaration. Rendered only when a valid GTM_CONTAINER_ID is set.
+--}}
+@php($tagManager = app(App\Services\Tracking\TagManager::class))
+@if ($tagManager->enabled())
+    <script @if ($nonce = Illuminate\Support\Facades\Vite::cspNonce()) nonce="{{ $nonce }}" @endif>window.dataLayer = window.dataLayer || [];</script>
+    <!-- Google Tag Manager -->
+    <script @if ($nonce) nonce="{{ $nonce }}" @endif>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer',{{ Illuminate\Support\Js::from($tagManager->containerId()) }});</script>
+    <!-- End Google Tag Manager -->
+@endif
