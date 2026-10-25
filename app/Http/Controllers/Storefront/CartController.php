@@ -14,6 +14,9 @@ use Illuminate\Http\Request;
  * Plain-form "add to cart" used by product cards (no JavaScript required).
  * The product page and cart page use Livewire components that call the
  * same Cart service.
+ *
+ * Product cards post their own path as return_to: search-result pages use
+ * "Referrer-Policy: origin", so back() alone would lose the search.
  */
 class CartController extends Controller
 {
@@ -22,12 +25,13 @@ class CartController extends Controller
         $validated = $request->validate([
             'product' => ['required', 'string', 'max:255'],
             'quantity' => ['nullable', 'integer', 'min:1', 'max:'.config('storefront.max_quantity_per_item')],
+            'return_to' => ['nullable', 'string', 'max:2048'],
         ]);
 
         $product = $catalog->visibleProducts()->where('slug', $validated['product'])->first();
 
         if (! $product) {
-            return back()->with('error', 'Sorry, this product is not available.');
+            return $this->returnTo($validated['return_to'] ?? null)->with('error', 'Sorry, this product is not available.');
         }
 
         $before = $cart->contents();
@@ -37,6 +41,18 @@ class CartController extends Controller
             $dataLayer->flash($event);
         }
 
-        return back()->with('success', "“{$product->name}” was added to your cart.");
+        return $this->returnTo($validated['return_to'] ?? null)->with('success', "“{$product->name}” was added to your cart.");
+    }
+
+    /**
+     * Only a same-site relative path is accepted (no open redirects).
+     */
+    private function returnTo(?string $path): RedirectResponse
+    {
+        if (is_string($path) && preg_match('#^/(?![/\\\\])[^\s\\\\]*$#', $path) === 1) {
+            return redirect()->to(url($path));
+        }
+
+        return back();
     }
 }

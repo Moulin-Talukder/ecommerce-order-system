@@ -21,6 +21,8 @@
                 <form method="POST" action="{{ route('storefront.cart.add') }}">
                     @csrf
                     <input type="hidden" name="product" value="{{ $product->slug }}">
+                    {{-- Search pages send only their origin as Referer, so back() cannot return to them. --}}
+                    <input type="hidden" name="return_to" value="{{ request()->getRequestUri() }}">
                     <button type="submit" class="w-full rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800">Add to cart</button>
                 </form>
             @else

@@ -15,6 +15,9 @@ use Illuminate\Http\Request;
  *    replaced with "redacted" (e.g. from a tagged marketing link);
  *  - credentials and fragments are dropped.
  * Marketing parameters (utm_*, gclid, ...) and pagination are kept.
+ *
+ * page_has_search_text tells GTM to block tags that read the raw browser URL
+ * themselves (e.g. a future Meta Pixel) on such pages; the text is never sent.
  */
 class PageContext
 {
@@ -24,14 +27,31 @@ class PageContext
     private const REDACTED = 'redacted';
 
     /**
-     * @return array{page_location: string, page_referrer: string|null}
+     * @return array{page_location: string, page_referrer: string|null, page_has_search_text: bool}
      */
     public function forRequest(Request $request): array
     {
         return [
             'page_location' => $this->sanitize($request->getSchemeAndHttpHost().$request->getRequestUri()),
             'page_referrer' => $this->sanitize((string) $request->headers->get('referer')),
+            'page_has_search_text' => $this->hasSearchText($request),
         ];
+    }
+
+    /**
+     * Whether the page URL carries shopper-typed text (a non-blank ?q=).
+     */
+    public function hasSearchText(Request $request): bool
+    {
+        foreach (explode('&', (string) parse_url($request->getRequestUri(), PHP_URL_QUERY)) as $pair) {
+            [$name, $value] = array_pad(explode('=', $pair, 2), 2, '');
+
+            if ($this->isFreeText($name) && trim(urldecode($value)) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function sanitize(string $url): ?string
@@ -58,9 +78,8 @@ class PageContext
             }
 
             [$name, $value] = array_pad(explode('=', $pair, 2), 2, null);
-            $decodedName = strtolower(preg_replace('/\[.*$/', '', urldecode($name)));
 
-            if (in_array($decodedName, self::FREE_TEXT_PARAMETERS, true) || ($value === null && $this->looksPersonal(urldecode($name)))) {
+            if ($this->isFreeText($name) || ($value === null && $this->looksPersonal(urldecode($name)))) {
                 continue;
             }
 
@@ -68,6 +87,11 @@ class PageContext
         }
 
         return implode('&', $pairs);
+    }
+
+    private function isFreeText(string $rawName): bool
+    {
+        return in_array(strtolower(preg_replace('/\[.*$/', '', urldecode($rawName))), self::FREE_TEXT_PARAMETERS, true);
     }
 
     private function looksPersonal(string $value): bool

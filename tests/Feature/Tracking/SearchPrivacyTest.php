@@ -32,7 +32,7 @@ class SearchPrivacyTest extends TestCase
     }
 
     /**
-     * @return array{page_location: string, page_referrer: string|null}
+     * @return array{page_location: string, page_referrer: string|null, page_has_search_text: bool}
      */
     private function pageContext(TestResponse $response): array
     {
@@ -75,7 +75,7 @@ class SearchPrivacyTest extends TestCase
         $this->assertStringContainsString('Search results', $title);
         $this->assertStringNotContainsString('Rahima', $title, 'Analytics tags collect the page title.');
         $search->assertSee('Results for “'.self::PERSONAL_SEARCH.'”');
-        $this->assertSame(['page_location' => url('/').'/?page=1', 'page_referrer' => null], $this->pageContext($search));
+        $this->assertSame(['page_location' => url('/').'/?page=1', 'page_referrer' => null, 'page_has_search_text' => true], $this->pageContext($search));
         $this->assertStringNotContainsString('01712345678', json_encode([$this->pageContext($search), $this->dataLayerEvents($search)]));
 
         $found = $this->get(route('storefront.home', ['q' => 'panjabi']))->assertOk()->assertSee('Cotton Panjabi');
@@ -106,5 +106,100 @@ class SearchPrivacyTest extends TestCase
 
         config(['services.gtm.container_id' => '']);
         $this->get(route('storefront.home', ['q' => 'panjabi']))->assertOk()->assertSee('Cotton Panjabi')->assertDontSee('page_location');
+    }
+
+    // --- Search-text pages: referrer policy and the GTM blocking flag ---------------------------
+
+    /**
+     * @return array<string, array{string, bool}>
+     */
+    public static function searchTextUrls(): array
+    {
+        return [
+            'home search' => ['/?q=01712345678', true],
+            'category search' => ['/categories/panjabi?q=rahima%40example.com', true],
+            'array and mixed-case names' => ['/?Q[]=Rahima', true],
+            'other page with search text' => ['/products/cotton-panjabi?q=x', true],
+            'blank search' => ['/?q=+', false],
+            'empty search' => ['/?q=', false],
+            'direct visit' => ['/', false],
+            'pagination only' => ['/?page=2&utm_source=facebook', false],
+            'category' => ['/categories/panjabi', false],
+            'product' => ['/products/cotton-panjabi', false],
+            'cart' => ['/cart', false],
+        ];
+    }
+
+    #[DataProvider('searchTextUrls')]
+    public function test_pages_with_search_text_send_only_their_origin_as_referrer(string $path, bool $hasSearchText): void
+    {
+        foreach (['GTM-TEST123', ''] as $containerId) {
+            config(['services.gtm.container_id' => $containerId]);
+
+            $response = $this->get($path)->assertOk();
+
+            $this->assertSame($hasSearchText ? 'origin' : null, $response->headers->get('Referrer-Policy'), "{$path} with GTM [{$containerId}]");
+
+            if ($containerId !== '') {
+                $this->assertSame($hasSearchText, $this->pageContext($response)['page_has_search_text']);
+            }
+        }
+    }
+
+    public function test_the_blocking_flag_never_carries_the_search_text_and_ga4_values_stay_clean(): void
+    {
+        $search = $this->get('/?q='.urlencode(self::PERSONAL_SEARCH).'&page=2', ['Referer' => url('/').'/?q=rahima%40example.com'])->assertOk();
+        $context = $this->pageContext($search);
+
+        $this->assertSame(['page_location' => url('/').'/?page=2', 'page_referrer' => url('/').'/', 'page_has_search_text' => true], $context);
+        $this->assertStringNotContainsStringIgnoringCase('rahima', json_encode($context));
+        $this->assertStringContainsString('Search results', strstr(strstr((string) $search->getContent(), '<title>'), '</title>', true));
+
+        $direct = $this->pageContext($this->get(route('storefront.product', 'cotton-panjabi'))->assertOk());
+        $this->assertSame(['page_location' => route('storefront.product', 'cotton-panjabi'), 'page_referrer' => null, 'page_has_search_text' => false], $direct);
+    }
+
+    public function test_admin_and_login_pages_are_untouched(): void
+    {
+        $this->get(route('login', ['q' => 'x']))->assertOk()->assertHeaderMissing('Referrer-Policy');
+    }
+
+    // --- Adding to the cart from search results -------------------------------------------------
+
+    public function test_adding_from_search_results_returns_to_the_same_search(): void
+    {
+        $results = $this->get('/?q=panjabi&page=1')->assertOk();
+        $this->assertStringContainsString('name="return_to" value="/?q=panjabi&amp;page=1"', (string) $results->getContent());
+
+        // The browser sends only the origin as Referer from a search page.
+        $this->post(route('storefront.cart.add'), ['product' => 'cotton-panjabi', 'return_to' => '/?q=panjabi&page=1'], ['Referer' => url('/').'/'])
+            ->assertRedirect(url('/?q=panjabi&page=1'))
+            ->assertSessionHas('success');
+
+        $this->post(route('storefront.cart.add'), ['product' => 'missing', 'return_to' => '/categories/panjabi?q=tee'], ['Referer' => url('/').'/'])
+            ->assertRedirect(url('/categories/panjabi?q=tee'))
+            ->assertSessionHas('error');
+    }
+
+    /**
+     * @return array<string, array{string|null}>
+     */
+    public static function unsafeReturnPaths(): array
+    {
+        return [
+            'absolute URL' => ['https://evil.example/phish'],
+            'protocol-relative' => ['//evil.example/phish'],
+            'backslash trick' => ['/\\evil.example'],
+            'not a path' => ['javascript:alert(1)'],
+            'inner whitespace' => ['/cart evil'],
+            'missing' => [null],
+        ];
+    }
+
+    #[DataProvider('unsafeReturnPaths')]
+    public function test_unsafe_return_paths_fall_back_to_the_previous_page(?string $returnTo): void
+    {
+        $this->post(route('storefront.cart.add'), array_filter(['product' => 'cotton-panjabi', 'return_to' => $returnTo]), ['Referer' => route('storefront.category', 'panjabi')])
+            ->assertRedirect(route('storefront.category', 'panjabi'));
     }
 }
