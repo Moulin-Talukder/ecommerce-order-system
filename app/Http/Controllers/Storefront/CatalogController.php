@@ -25,7 +25,8 @@ class CatalogController extends Controller
         $this->trackList($dataLayer, $events, $search !== '' ? 'search_results' : 'all_products', $search !== '' ? 'Search results' : 'All products', $products);
 
         return view('storefront.catalog', [
-            'title' => $search !== '' ? "Search: {$search}" : null,
+            // The search text stays out of <title>: analytics tags collect the page title.
+            'title' => $search !== '' ? 'Search results' : null,
             'category' => null,
             'search' => $search,
             'products' => $products,
