@@ -154,3 +154,38 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Run `vendor/bin/phpunit` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
 
 </laravel-boost-guidelines>
+
+
+## Git push rules (always follow before every push)
+
+Before running any `git push`, do ALL of these checks. If any check fails, STOP and tell me. Do not push.
+
+1. Identity check: run
+   git config user.name && git config user.email
+   It must be exactly "Moulin Talukder" and "rock.oronno@gmail.com".
+   If it is not, set it with repo-local git config and tell me.
+
+2. Check the unpushed commits: run
+   git log @{u}..HEAD --format="%h | %an <%ae> | %cn <%ce>"
+   (if there is no upstream yet, use: git log --format="%h | %an <%ae> | %cn <%ce>")
+   Every author AND committer must be "Moulin Talukder <rock.oronno@gmail.com>".
+
+3. Check for attribution: run
+   git log @{u}..HEAD --format="%B" | grep -ci -E "claude|anthropic|co-authored-by"
+   The result must be 0. If any unpushed commit has a "Co-Authored-By: Claude" line or any
+   "Generated with Claude" text, show me which commits have it, remove it from those
+   unpushed commits only, and show me the result before pushing.
+
+4. Never add Co-Authored-By, "Generated with Claude Code", or any Claude/Anthropic
+   attribution to commit messages or PR descriptions.
+
+5. Push only with my existing local git credentials (Git Credential Manager).
+   Never use any other account, token, GitHub App, or Claude account.
+   If authentication fails, stop and tell me. Do not try anything else.
+
+6. Never use `git push --force`, `--force-with-lease`, or `--all`, and never rewrite
+   commits that are already pushed, unless I explicitly ask in that message.
+   Push only the current branch.
+
+7. Before pushing, show me a short summary: the branch name, the number of commits,
+   and the output of checks 2 and 3. Then push.
