@@ -202,4 +202,56 @@ class SearchPrivacyTest extends TestCase
         $this->post(route('storefront.cart.add'), array_filter(['product' => 'cotton-panjabi', 'return_to' => $returnTo]), ['Referer' => route('storefront.category', 'panjabi')])
             ->assertRedirect(route('storefront.category', 'panjabi'));
     }
+
+    /**
+     * @return array<string, array{array<string, mixed>, string}>
+     */
+    public static function failedSubmissions(): array
+    {
+        return [
+            'zero quantity' => [['quantity' => 0], 'quantity'],
+            'quantity above the limit' => [['quantity' => 500], 'quantity'],
+            'non-numeric quantity' => [['quantity' => 'abc'], 'quantity'],
+            'missing product' => [['product' => null], 'product'],
+            'oversized return path' => [['return_to' => '/?q='.str_repeat('a', 2050)], 'return_to'],
+        ];
+    }
+
+    #[DataProvider('failedSubmissions')]
+    public function test_invalid_submissions_from_search_results_return_to_the_search(array $overrides, string $invalidField): void
+    {
+        $data = array_filter(array_merge(['product' => 'cotton-panjabi', 'return_to' => '/categories/panjabi?q=panjabi&page=2'], $overrides), fn ($value) => $value !== null);
+        $expected = $invalidField === 'return_to' ? route('storefront.category', 'panjabi') : url('/categories/panjabi?q=panjabi&page=2');
+
+        $this->post(route('storefront.cart.add'), $data, ['Referer' => $invalidField === 'return_to' ? route('storefront.category', 'panjabi') : url('/').'/'])
+            ->assertRedirect($expected)
+            ->assertSessionHasErrors($invalidField)
+            ->assertSessionMissing('_old_input.return_to');
+
+        $this->assertSame([], session('storefront.cart', []), 'Nothing was added.');
+    }
+
+    public function test_a_refused_addition_from_search_results_returns_to_the_search(): void
+    {
+        $this->withSession(['storefront.cart' => [Product::where('slug', 'cotton-panjabi')->value('id') => 5]]);
+
+        $this->post(route('storefront.cart.add'), ['product' => 'cotton-panjabi', 'return_to' => '/?q=panjabi'], ['Referer' => url('/').'/'])
+            ->assertRedirect(url('/?q=panjabi'))
+            ->assertSessionHas('error', 'You already have the maximum quantity of “Cotton Panjabi” in your cart.');
+    }
+
+    #[DataProvider('unsafeReturnPaths')]
+    public function test_unsafe_return_paths_are_ignored_when_validation_fails(?string $returnTo): void
+    {
+        $this->post(route('storefront.cart.add'), array_filter(['product' => 'cotton-panjabi', 'quantity' => 500, 'return_to' => $returnTo]), ['Referer' => route('storefront.category', 'panjabi')])
+            ->assertRedirect(route('storefront.category', 'panjabi'))
+            ->assertSessionHasErrors('quantity');
+    }
+
+    public function test_a_malformed_return_path_is_ignored(): void
+    {
+        $this->post(route('storefront.cart.add'), ['product' => 'cotton-panjabi', 'return_to' => ['/?q=x']], ['Referer' => route('storefront.category', 'panjabi')])
+            ->assertRedirect(route('storefront.category', 'panjabi'))
+            ->assertSessionHasErrors('return_to');
+    }
 }
