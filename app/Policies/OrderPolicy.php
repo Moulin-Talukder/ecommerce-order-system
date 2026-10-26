@@ -35,6 +35,16 @@ class OrderPolicy
         return $user->canAccessAdmin();
     }
 
+    /**
+     * The Reports section (aggregated sales, order, product, payment and
+     * customer figures). Matches viewSalesSummary today; restrict it here
+     * (e.g. to Super Admin, Admin, Manager) if reports become sensitive.
+     */
+    public function viewReports(User $user): bool
+    {
+        return $this->viewSalesSummary($user);
+    }
+
     public function create(User $user): bool
     {
         return $this->canOperate($user);

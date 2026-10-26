@@ -16,6 +16,7 @@ use App\Http\Controllers\Storefront\CheckoutController;
 use App\Http\Controllers\Storefront\OrderConfirmationController;
 use App\Http\Controllers\Storefront\PrivacyController;
 use App\Http\Middleware\ProtectSensitiveUrlReferrer;
+use App\Models\Order;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,6 +55,7 @@ Route::middleware(['auth', 'admin'])
     ->name('admin.')
     ->group(function () {
         Route::livewire('/', 'pages::admin.dashboard')->name('dashboard');
+        Route::livewire('reports', 'pages::admin.reports')->middleware('can:viewReports,'.Order::class)->name('reports');
 
         Route::resource('categories', CategoryController::class)->except('show');
         Route::patch('categories/{category}/status', [CategoryController::class, 'updateStatus'])->name('categories.status');
