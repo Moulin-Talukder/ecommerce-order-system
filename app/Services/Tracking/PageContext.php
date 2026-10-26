@@ -16,8 +16,9 @@ use Illuminate\Http\Request;
  *  - credentials and fragments are dropped.
  * Marketing parameters (utm_*, gclid, ...) and pagination are kept.
  *
- * page_has_search_text tells GTM to block tags that read the raw browser URL
- * themselves (e.g. a future Meta Pixel) on such pages; the text is never sent.
+ * page_has_search_text and page_has_personal_data_in_url tell GTM to block
+ * tags that read the raw browser URL themselves (the Meta Pixel) on such
+ * pages; neither the text nor the data is ever sent.
  */
 class PageContext
 {
@@ -27,7 +28,7 @@ class PageContext
     private const REDACTED = 'redacted';
 
     /**
-     * @return array{page_location: string, page_referrer: string|null, page_has_search_text: bool}
+     * @return array{page_location: string, page_referrer: string|null, page_has_search_text: bool, page_has_personal_data_in_url: bool}
      */
     public function forRequest(Request $request): array
     {
@@ -35,7 +36,32 @@ class PageContext
             'page_location' => $this->sanitize($request->getSchemeAndHttpHost().$request->getRequestUri()),
             'page_referrer' => $this->sanitize((string) $request->headers->get('referer')),
             'page_has_search_text' => $this->hasSearchText($request),
+            'page_has_personal_data_in_url' => $this->hasPersonalDataInUrl($request),
         ];
+    }
+
+    /**
+     * Whether the URL holds text that must not reach tags reading the raw
+     * browser URL: search text, or a value that looks like an email or phone.
+     */
+    public function hasSensitiveUrl(Request $request): bool
+    {
+        return $this->hasSearchText($request) || $this->hasPersonalDataInUrl($request);
+    }
+
+    /**
+     * Whether any other query parameter looks like an email address or phone
+     * number (e.g. from a tagged marketing link).
+     */
+    public function hasPersonalDataInUrl(Request $request): bool
+    {
+        foreach ($this->queryPairs($request) as [$name, $value]) {
+            if (! $this->isFreeText($name) && $this->pairLooksPersonal($name, $value)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -43,15 +69,31 @@ class PageContext
      */
     public function hasSearchText(Request $request): bool
     {
-        foreach (explode('&', (string) parse_url($request->getRequestUri(), PHP_URL_QUERY)) as $pair) {
-            [$name, $value] = array_pad(explode('=', $pair, 2), 2, '');
-
-            if ($this->isFreeText($name) && trim(urldecode($value)) !== '') {
+        foreach ($this->queryPairs($request) as [$name, $value]) {
+            if ($this->isFreeText($name) && trim(urldecode($value ?? '')) !== '') {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Raw name/value pairs of the request query string (value null for "?name").
+     *
+     * @return list<array{string, string|null}>
+     */
+    private function queryPairs(Request $request): array
+    {
+        $pairs = [];
+
+        foreach (explode('&', (string) parse_url($request->getRequestUri(), PHP_URL_QUERY)) as $pair) {
+            if ($pair !== '') {
+                $pairs[] = array_pad(explode('=', $pair, 2), 2, null);
+            }
+        }
+
+        return $pairs;
     }
 
     public function sanitize(string $url): ?string
@@ -79,7 +121,7 @@ class PageContext
 
             [$name, $value] = array_pad(explode('=', $pair, 2), 2, null);
 
-            if ($this->isFreeText($name) || ($value === null && $this->looksPersonal(urldecode($name)))) {
+            if ($this->isFreeText($name) || $this->looksPersonal(urldecode($name))) {
                 continue;
             }
 
@@ -94,9 +136,21 @@ class PageContext
         return in_array(strtolower(preg_replace('/\[.*$/', '', urldecode($rawName))), self::FREE_TEXT_PARAMETERS, true);
     }
 
+    private function pairLooksPersonal(string $rawName, ?string $rawValue): bool
+    {
+        return $this->looksPersonal(urldecode($rawName)) || ($rawValue !== null && $this->looksPersonal(urldecode($rawValue)));
+    }
+
+    /**
+     * An email-like value, a value made only of 7+ digits and separators, or a
+     * Bangladeshi mobile number standing apart anywhere in the text. Random
+     * click IDs (gclid, fbclid) are not matched: the mobile number must not
+     * touch other letters or digits.
+     */
     private function looksPersonal(string $value): bool
     {
         return str_contains($value, '@')
-            || preg_match('/^[\s()+\-.]*(?:\d[\s()+\-.]*){7,}$/', $value) === 1;
+            || preg_match('/^[\s()+\-.]*(?:\d[\s()+\-.]*){7,}$/', $value) === 1
+            || preg_match('/(?<![a-z0-9])(?:\+?880[\s.\-]?|0)1[3-9](?:[\s.\-]?\d){8}(?![a-z0-9])/i', $value) === 1;
     }
 }

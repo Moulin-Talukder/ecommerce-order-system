@@ -34,6 +34,34 @@ trait InteractsWithDataLayer
     }
 
     /**
+     * The Google consent-mode defaults rendered before the GTM container.
+     *
+     * @return array<string, string>|null
+     */
+    protected function googleConsentDefaults(TestResponse $response): ?array
+    {
+        if (! preg_match("/gtag\\('consent', 'default', JSON\\.parse\\('([^']*)'\\)\\);/", (string) $response->getContent(), $match)) {
+            return null;
+        }
+
+        return json_decode(json_decode('"'.$match[1].'"'), true, flags: JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * The page-context object pushed before the GTM container.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function pushedPageContext(TestResponse $response): ?array
+    {
+        if (! preg_match("/window\\.dataLayer\\.push\\(JSON\\.parse\\('([^']*)'\\)\\);<\\/script>/", (string) $response->getContent(), $match)) {
+            return null;
+        }
+
+        return json_decode(json_decode('"'.$match[1].'"'), true, flags: JSON_THROW_ON_ERROR);
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $events
      * @return list<array<string, mixed>>
      */

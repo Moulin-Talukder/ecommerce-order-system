@@ -43,7 +43,7 @@
             <input id="{{ $idPrefix }}-marketing" type="checkbox" name="marketing" value="1" class="mt-1" @checked($choice?->marketing)>
             <span>
                 <span class="font-medium text-gray-900">Marketing</span>
-                <span class="block text-gray-600">Lets advertising tools measure our ads. No advertising tool is active on this site yet. Off unless you turn it on.</span>
+                <span class="block text-gray-600">Lets the Meta Pixel measure visits and purchases from our Facebook and Instagram ads. Off unless you turn it on.</span>
             </span>
         </label>
     </fieldset>

@@ -15,7 +15,7 @@ use App\Http\Controllers\Storefront\CatalogController;
 use App\Http\Controllers\Storefront\CheckoutController;
 use App\Http\Controllers\Storefront\OrderConfirmationController;
 use App\Http\Controllers\Storefront\PrivacyController;
-use App\Http\Middleware\ProtectSearchTextReferrer;
+use App\Http\Middleware\ProtectSensitiveUrlReferrer;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::name('storefront.')->middleware(ProtectSearchTextReferrer::class)->group(function () {
+Route::name('storefront.')->middleware(ProtectSensitiveUrlReferrer::class)->group(function () {
     Route::get('/', [CatalogController::class, 'index'])->name('home');
     Route::get('categories/{slug}', [CatalogController::class, 'category'])->name('category');
     Route::get('products/{slug}', [CatalogController::class, 'product'])->name('product');

@@ -32,7 +32,7 @@ class SearchPrivacyTest extends TestCase
     }
 
     /**
-     * @return array{page_location: string, page_referrer: string|null, page_has_search_text: bool}
+     * @return array{page_location: string, page_referrer: string|null, page_has_search_text: bool, page_has_personal_data_in_url: bool}
      */
     private function pageContext(TestResponse $response): array
     {
@@ -57,6 +57,13 @@ class SearchPrivacyTest extends TestCase
             'external referrers keep their origin' => ['https://www.google.com/', 'https://www.google.com/'],
             'not a web URL' => ['javascript:alert(1)', null],
             'empty' => ['', null],
+            'email-like parameter names are dropped even with a value' => ['https://shop.test/?rahima%40example.com=1&page=2', 'https://shop.test/?page=2'],
+            'a Bangladeshi mobile inside text is redacted' => ['https://shop.test/?utm_content=call+01712345678+now', 'https://shop.test/?utm_content=redacted'],
+            'international mobile format is redacted' => ['https://shop.test/?ref=%2B8801712345678', 'https://shop.test/?ref=redacted'],
+            'spaced mobile number is redacted' => ['https://shop.test/?ref=017+1234+5678', 'https://shop.test/?ref=redacted'],
+            'click IDs with digit runs are kept' => ['https://shop.test/?gclid=Cj0KCQjw01712345678abc&fbclid=IwAR2017123456789Xy', 'https://shop.test/?gclid=Cj0KCQjw01712345678abc&fbclid=IwAR2017123456789Xy'],
+            'order numbers and short numbers are kept' => ['https://shop.test/?ref=ORD-261026-62FG8P&page=12', 'https://shop.test/?ref=ORD-261026-62FG8P&page=12'],
+            'malformed pairs are tolerated' => ['https://shop.test/?&&=x&page=2&%ZZ=1', 'https://shop.test/?=x&page=2&%ZZ=1'],
         ];
     }
 
@@ -75,7 +82,7 @@ class SearchPrivacyTest extends TestCase
         $this->assertStringContainsString('Search results', $title);
         $this->assertStringNotContainsString('Rahima', $title, 'Analytics tags collect the page title.');
         $search->assertSee('Results for “'.self::PERSONAL_SEARCH.'”');
-        $this->assertSame(['page_location' => url('/').'/?page=1', 'page_referrer' => null, 'page_has_search_text' => true], $this->pageContext($search));
+        $this->assertSame(['page_location' => url('/').'/?page=1', 'page_referrer' => null, 'page_has_search_text' => true, 'page_has_personal_data_in_url' => false], $this->pageContext($search));
         $this->assertStringNotContainsString('01712345678', json_encode([$this->pageContext($search), $this->dataLayerEvents($search)]));
 
         $found = $this->get(route('storefront.home', ['q' => 'panjabi']))->assertOk()->assertSee('Cotton Panjabi');
@@ -151,12 +158,12 @@ class SearchPrivacyTest extends TestCase
         $search = $this->get('/?q='.urlencode(self::PERSONAL_SEARCH).'&page=2', ['Referer' => url('/').'/?q=rahima%40example.com'])->assertOk();
         $context = $this->pageContext($search);
 
-        $this->assertSame(['page_location' => url('/').'/?page=2', 'page_referrer' => url('/').'/', 'page_has_search_text' => true], $context);
+        $this->assertSame(['page_location' => url('/').'/?page=2', 'page_referrer' => url('/').'/', 'page_has_search_text' => true, 'page_has_personal_data_in_url' => false], $context);
         $this->assertStringNotContainsStringIgnoringCase('rahima', json_encode($context));
         $this->assertStringContainsString('Search results', strstr(strstr((string) $search->getContent(), '<title>'), '</title>', true));
 
         $direct = $this->pageContext($this->get(route('storefront.product', 'cotton-panjabi'))->assertOk());
-        $this->assertSame(['page_location' => route('storefront.product', 'cotton-panjabi'), 'page_referrer' => null, 'page_has_search_text' => false], $direct);
+        $this->assertSame(['page_location' => route('storefront.product', 'cotton-panjabi'), 'page_referrer' => null, 'page_has_search_text' => false, 'page_has_personal_data_in_url' => false], $direct);
     }
 
     public function test_admin_and_login_pages_are_untouched(): void

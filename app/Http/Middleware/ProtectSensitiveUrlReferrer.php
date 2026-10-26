@@ -8,12 +8,13 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Storefront pages whose URL carries search text (?q=) are served with
- * "Referrer-Policy: origin", so the next page, and any script reading
- * document.referrer there (analytics or advertising tags), only sees the site
- * origin, never the search text. Applies whether or not GTM is enabled.
+ * Storefront pages whose URL carries search text (?q=) or a value that looks
+ * like an email or phone number are served with "Referrer-Policy: origin", so
+ * the next page, and any script reading document.referrer there (analytics or
+ * advertising tags such as the Meta Pixel), only sees the site origin.
+ * Applies whether or not GTM is enabled.
  */
-class ProtectSearchTextReferrer
+class ProtectSensitiveUrlReferrer
 {
     public function __construct(private PageContext $pageContext) {}
 
@@ -26,7 +27,7 @@ class ProtectSearchTextReferrer
     {
         $response = $next($request);
 
-        if ($this->pageContext->hasSearchText($request)) {
+        if ($this->pageContext->hasSensitiveUrl($request)) {
             $response->headers->set('Referrer-Policy', 'origin');
         }
 
