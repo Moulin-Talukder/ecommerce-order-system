@@ -55,10 +55,16 @@
         </main>
 
         <footer class="border-t border-gray-200 bg-white">
-            <div class="mx-auto max-w-6xl px-4 py-6 text-sm text-gray-500">
-                © {{ now()->year }} {{ config('app.name') }} · Cash on Delivery across Bangladesh
+            <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-6 text-sm text-gray-500">
+                <span>© {{ now()->year }} {{ config('app.name') }} · Cash on Delivery across Bangladesh</span>
+                <nav aria-label="Privacy" class="flex flex-wrap gap-x-4 sm:ml-auto">
+                    <a href="{{ route('storefront.privacy') }}" class="underline hover:text-gray-900">Privacy notice · <span lang="bn">গোপনীয়তা নীতি</span></a>
+                    <a href="{{ route('storefront.privacy.settings') }}" class="underline hover:text-gray-900">Privacy settings / <span lang="bn">গোপনীয়তা সেটিংস</span></a>
+                </nav>
             </div>
         </footer>
+
+        <x-storefront.consent-banner />
 
         <x-tracking.data-layer />
         @livewireScripts

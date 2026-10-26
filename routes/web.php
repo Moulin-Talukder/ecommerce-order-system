@@ -14,6 +14,7 @@ use App\Http\Controllers\Storefront\CartController;
 use App\Http\Controllers\Storefront\CatalogController;
 use App\Http\Controllers\Storefront\CheckoutController;
 use App\Http\Controllers\Storefront\OrderConfirmationController;
+use App\Http\Controllers\Storefront\PrivacyController;
 use App\Http\Middleware\ProtectSearchTextReferrer;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,9 @@ Route::name('storefront.')->middleware(ProtectSearchTextReferrer::class)->group(
     Route::get('checkout', [CheckoutController::class, 'show'])->name('checkout');
     Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:storefront-checkout')->name('checkout.store');
     Route::get('order/{orderNumber}/thank-you', [OrderConfirmationController::class, 'show'])->name('thank-you');
+    Route::get('privacy', [PrivacyController::class, 'notice'])->name('privacy');
+    Route::get('privacy/settings', [PrivacyController::class, 'settings'])->name('privacy.settings');
+    Route::post('privacy/consent', [PrivacyController::class, 'update'])->name('privacy.consent');
 });
 
 /*

@@ -71,9 +71,12 @@ class Ga4ReadinessTest extends TestCase
             foreach ($pages as $url) {
                 $html = $this->get($url)->assertOk()->getContent();
 
-                foreach (['gtag/js', 'gtag(', 'google-analytics.com', 'analytics.js', 'measurement_id'] as $directCode) {
+                foreach (['gtag/js', 'google-analytics.com', 'analytics.js', 'measurement_id', "gtag('js'", "gtag('config'", "gtag('event'"] as $directCode) {
                     $this->assertStringNotContainsString($directCode, $html, "{$url} must not load GA4 directly.");
                 }
+                // The only gtag() calls are the queued consent-mode commands that GTM reads.
+                preg_match_all("/gtag\\('([a-z_]+)'/", $html, $commands);
+                $this->assertSame($containerId === '' ? [] : ['consent', 'set'], $commands[1], "{$url}: only consent commands are queued.");
                 $this->assertDoesNotMatchRegularExpression('/\bG-[A-Z0-9]{6,}\b/', $html, 'No Measurement ID in the page.');
                 $this->assertSame($containerId === '' ? 0 : 1, substr_count($html, 'googletagmanager.com/gtm.js'), 'GTM is the only Google script.');
             }

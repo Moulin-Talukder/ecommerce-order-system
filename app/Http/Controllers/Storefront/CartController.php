@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Storefront;
 
 use App\Exceptions\Storefront\CartException;
+use App\Http\Controllers\Concerns\RedirectsToSafePath;
 use App\Http\Controllers\Controller;
 use App\Services\Storefront\Cart;
 use App\Services\Storefront\Catalog;
@@ -23,6 +24,8 @@ use Illuminate\Support\Facades\Validator;
  */
 class CartController extends Controller
 {
+    use RedirectsToSafePath;
+
     public function store(Request $request, Catalog $catalog, Cart $cart, CartChangeTracker $tracker, DataLayer $dataLayer): RedirectResponse
     {
         $validator = Validator::make($request->all(), [
@@ -34,7 +37,7 @@ class CartController extends Controller
         if ($validator->fails()) {
             $returnTo = $validator->errors()->has('return_to') ? null : $request->input('return_to');
 
-            return $this->returnTo($returnTo)->withErrors($validator)->withInput($request->except('return_to'));
+            return $this->redirectToSafePath($returnTo)->withErrors($validator)->withInput($request->except('return_to'));
         }
 
         $validated = $validator->validated();
@@ -42,7 +45,7 @@ class CartController extends Controller
         $product = $catalog->visibleProducts()->where('slug', $validated['product'])->first();
 
         if (! $product) {
-            return $this->returnTo($validated['return_to'] ?? null)->with('error', 'Sorry, this product is not available.');
+            return $this->redirectToSafePath($validated['return_to'] ?? null)->with('error', 'Sorry, this product is not available.');
         }
 
         $before = $cart->contents();
@@ -50,25 +53,13 @@ class CartController extends Controller
         try {
             $cart->add($product, (int) ($validated['quantity'] ?? 1));
         } catch (CartException $exception) {
-            return $this->returnTo($validated['return_to'] ?? null)->with('error', $exception->getMessage());
+            return $this->redirectToSafePath($validated['return_to'] ?? null)->with('error', $exception->getMessage());
         }
 
         foreach ($tracker->events($before, $cart->contents()) as $event) {
             $dataLayer->flash($event);
         }
 
-        return $this->returnTo($validated['return_to'] ?? null)->with('success', "“{$product->name}” was added to your cart.");
-    }
-
-    /**
-     * Only a same-site relative path is accepted (no open redirects).
-     */
-    private function returnTo(mixed $path): RedirectResponse
-    {
-        if (is_string($path) && preg_match('#^/(?![/\\\\])[^\s\\\\]*$#', $path) === 1) {
-            return redirect()->to(url($path));
-        }
-
-        return back();
+        return $this->redirectToSafePath($validated['return_to'] ?? null)->with('success', "“{$product->name}” was added to your cart.");
     }
 }
