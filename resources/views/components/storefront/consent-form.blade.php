@@ -1,14 +1,29 @@
-@props(['choice' => null, 'idPrefix' => 'consent'])
+@props(['choice' => null, 'idPrefix' => 'consent', 'compact' => false])
 {{--
     Tracking-consent form shared by the banner and the privacy settings page.
     Works without JavaScript. Optional categories are never pre-ticked for a
-    new shopper; Accept, Reject and Save carry equal visual weight.
+    new shopper; Accept and Reject carry equal visual weight.
+
+    Compact (banner): Reject all / Accept all stay visible and the individual
+    categories fold into a native <details>, so the banner stays small on
+    phones and does not cover checkout controls.
 --}}
+@php($buttonClass = 'rounded-md border border-gray-900 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100')
 <form method="POST" action="{{ route('storefront.privacy.consent') }}" {{ $attributes }}>
     @csrf
     <input type="hidden" name="return_to" value="{{ request()->getRequestUri() }}">
 
-    <fieldset class="space-y-3">
+    @if ($compact)
+        <div class="grid grid-cols-2 gap-2">
+            <button type="submit" name="decision" value="reject" class="{{ $buttonClass }}">Reject all</button>
+            <button type="submit" name="decision" value="accept" class="{{ $buttonClass }}">Accept all</button>
+        </div>
+
+        <details class="mt-2 text-sm">
+            <summary class="cursor-pointer py-1 font-medium text-gray-700 underline">Choose categories</summary>
+    @endif
+
+    <fieldset @class(['space-y-3', 'mt-2' => $compact])>
         <legend class="sr-only">Cookie and tracking choices</legend>
 
         <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
@@ -33,9 +48,14 @@
         </label>
     </fieldset>
 
-    <div class="mt-4 grid gap-2 sm:grid-cols-3">
-        <button type="submit" name="decision" value="reject" class="rounded-md border border-gray-900 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100">Reject all</button>
-        <button type="submit" name="decision" value="accept" class="rounded-md border border-gray-900 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100">Accept all</button>
-        <button type="submit" name="decision" value="save" class="rounded-md border border-gray-900 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100">Save my choices</button>
-    </div>
+    @if ($compact)
+            <button type="submit" name="decision" value="save" class="{{ $buttonClass }} mt-3 w-full">Save my choices</button>
+        </details>
+    @else
+        <div class="mt-4 grid gap-2 sm:grid-cols-3">
+            <button type="submit" name="decision" value="reject" class="{{ $buttonClass }}">Reject all</button>
+            <button type="submit" name="decision" value="accept" class="{{ $buttonClass }}">Accept all</button>
+            <button type="submit" name="decision" value="save" class="{{ $buttonClass }}">Save my choices</button>
+        </div>
+    @endif
 </form>

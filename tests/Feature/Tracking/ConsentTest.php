@@ -365,6 +365,25 @@ class ConsentTest extends TestCase
         }
     }
 
+    public function test_the_banner_is_compact_with_equal_accept_and_reject_and_folded_categories(): void
+    {
+        $html = (string) $this->get(route('storefront.home'))->getContent();
+        $banner = strstr(strstr($html, 'aria-labelledby="consent-banner-title"'), '</section>', true);
+        $beforeDetails = strstr($banner, '<details', true);
+        $details = strstr(strstr($banner, '<details'), '</details>', true);
+
+        preg_match('/<button type="submit" name="decision" value="reject" class="([^"]+)">Reject all<\/button>/', $beforeDetails, $reject);
+        preg_match('/<button type="submit" name="decision" value="accept" class="([^"]+)">Accept all<\/button>/', $beforeDetails, $accept);
+        $this->assertNotEmpty($reject, 'Reject all is visible without opening anything.');
+        $this->assertSame($reject[1] ?? null, $accept[1] ?? 'missing', 'Accept and Reject look the same.');
+
+        $this->assertStringContainsString('<summary', $details);
+        $this->assertStringContainsString('name="analytics"', $details);
+        $this->assertStringContainsString('name="marketing"', $details);
+        $this->assertStringContainsString('value="save"', $details, 'Saving individual choices lives with the choices.');
+        $this->assertStringNotContainsString('<details', (string) $this->get(route('storefront.privacy.settings'))->getContent(), 'The settings page shows every choice openly.');
+    }
+
     // --- Search privacy is preserved -----------------------------------------------------------------------
 
     public function test_search_text_stays_out_of_tracking_with_the_banner_and_after_consent(): void
