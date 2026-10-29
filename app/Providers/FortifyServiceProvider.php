@@ -34,7 +34,12 @@ class FortifyServiceProvider extends ServiceProvider
                 ->where('email', Str::lower($request->string(Fortify::username())))
                 ->first();
 
-            if (! $user || ! Hash::check($request->string('password'), $user->password)) {
+            // Unknown emails still pay for one hash check, so response time does not reveal which accounts exist.
+            if (! Hash::check($request->string('password'), $user?->password ?? self::dummyHash())) {
+                return null;
+            }
+
+            if (! $user) {
                 return null;
             }
 
@@ -47,10 +52,24 @@ class FortifyServiceProvider extends ServiceProvider
             return $user;
         });
 
-        RateLimiter::for('login', function (Request $request) {
+        // 5 attempts per minute per email+IP, and 20 per minute per IP across all emails (credential stuffing).
+        RateLimiter::for('login', function (Request $request): array {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
-            return Limit::perMinute(5)->by($throttleKey);
+            return [
+                Limit::perMinute(5)->by($throttleKey),
+                Limit::perMinute(20)->by('login-ip:'.$request->ip()),
+            ];
         });
+    }
+
+    /**
+     * A valid hash of a random value, computed once per process.
+     */
+    private static function dummyHash(): string
+    {
+        static $hash;
+
+        return $hash ??= Hash::make(Str::random(40));
     }
 }

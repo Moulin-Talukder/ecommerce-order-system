@@ -2,9 +2,12 @@
 
 use App\Http\Middleware\EnsureUserCanAccessAdmin;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\TrustConfiguredProxies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -21,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->redirectUsersTo(fn () => route('admin.dashboard'));
+
+        // Trusted proxies come from config/security.php (TRUSTED_PROXIES); none by default.
+        $middleware->replace(TrustProxies::class, TrustConfiguredProxies::class);
+        $middleware->append(SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

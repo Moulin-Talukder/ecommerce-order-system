@@ -199,7 +199,7 @@ class MetaPixelReadinessTest extends TestCase
 
             $response = $this->get($path)->assertOk();
 
-            $this->assertSame($searchText || $personalData ? 'origin' : null, $response->headers->get('Referrer-Policy'), "{$path} with GTM [{$containerId}]");
+            $this->assertSame($searchText || $personalData ? 'origin' : 'strict-origin-when-cross-origin', $response->headers->get('Referrer-Policy'), "{$path} with GTM [{$containerId}]");
 
             if ($containerId !== '') {
                 $context = $this->pushedPageContext($response);

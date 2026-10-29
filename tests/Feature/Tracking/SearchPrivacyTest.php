@@ -145,7 +145,7 @@ class SearchPrivacyTest extends TestCase
 
             $response = $this->get($path)->assertOk();
 
-            $this->assertSame($hasSearchText ? 'origin' : null, $response->headers->get('Referrer-Policy'), "{$path} with GTM [{$containerId}]");
+            $this->assertSame($hasSearchText ? 'origin' : 'strict-origin-when-cross-origin', $response->headers->get('Referrer-Policy'), "{$path} with GTM [{$containerId}]");
 
             if ($containerId !== '') {
                 $this->assertSame($hasSearchText, $this->pageContext($response)['page_has_search_text']);
@@ -168,7 +168,7 @@ class SearchPrivacyTest extends TestCase
 
     public function test_admin_and_login_pages_are_untouched(): void
     {
-        $this->get(route('login', ['q' => 'x']))->assertOk()->assertHeaderMissing('Referrer-Policy');
+        $this->get(route('login', ['q' => 'x']))->assertOk()->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin'); // the site default, not the storefront's "origin"
     }
 
     // --- Adding to the cart from search results -------------------------------------------------
