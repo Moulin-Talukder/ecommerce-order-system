@@ -1,3 +1,14 @@
+# E-commerce Order Management System
+
+Laravel 13 order management system with a customer storefront for a Bangladesh-based shop. It uses Asia/Dhaka time, BDT, Cash on Delivery and Steadfast courier, with consent-gated GTM/GA4/Meta tracking.
+
+- **Deploying:** [DEPLOYMENT.md](DEPLOYMENT.md): server requirements, deployment steps, backups, restore and rollback.
+- **Production readiness:** [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md): environment checklist, security checklist, smoke tests and owner actions.
+- **Testing report:** [tests/PHASE_17_TESTING_REPORT.md](tests/PHASE_17_TESTING_REPORT.md).
+- **Running tests:** `php artisan test --compact` (needs a MySQL database named `<DB_DATABASE>_test`).
+
+---
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
