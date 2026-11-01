@@ -28,6 +28,11 @@ return [
     'checkout_attempts_per_minute_per_ip' => 10,
     'checkout_attempts_per_hour_per_phone' => 10,
 
+    // Light per-IP limits on the other storefront forms. Generous, because many
+    // mobile customers can share one IP address (carrier NAT).
+    'cart_adds_per_minute_per_ip' => 120,
+    'consent_updates_per_minute_per_ip' => 30,
+
     /*
     |--------------------------------------------------------------------------
     | Tracking consent

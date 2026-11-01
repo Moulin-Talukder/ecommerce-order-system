@@ -10,7 +10,7 @@
         @endisset
 
         @fonts
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css'])
         @livewireStyles
     </head>
     <body class="flex min-h-full flex-col font-sans text-gray-900 antialiased">

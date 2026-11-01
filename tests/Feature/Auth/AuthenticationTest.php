@@ -30,6 +30,29 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('admin.dashboard'));
     }
 
+    public function test_remember_me_lasts_seven_days_not_laravels_default_400(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->post(route('login'), ['email' => $user->email, 'password' => 'password', 'remember' => 'on']);
+
+        $this->assertAuthenticatedAs($user);
+        $cookie = $response->getCookie(auth()->guard('web')->getRecallerName(), decrypt: false);
+        $this->assertNotNull($cookie, 'A remember-me cookie is set when asked for.');
+        $this->assertEqualsWithDelta(now()->addDays(7)->getTimestamp(), $cookie->getExpiresTime(), 120);
+        $this->assertTrue($cookie->isHttpOnly());
+    }
+
+    public function test_no_remember_me_cookie_without_the_checkbox(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->post(route('login'), ['email' => $user->email, 'password' => 'password']);
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertNull($response->getCookie(auth()->guard('web')->getRecallerName(), decrypt: false));
+    }
+
     public function test_email_is_matched_case_insensitively(): void
     {
         $user = User::factory()->create(['email' => 'owner@example.com']);

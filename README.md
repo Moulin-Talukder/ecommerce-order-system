@@ -1,69 +1,110 @@
 # E-commerce Order Management System
 
-Laravel 13 order management system with a customer storefront for a Bangladesh-based shop. It uses Asia/Dhaka time, BDT, Cash on Delivery and Steadfast courier, with consent-gated GTM/GA4/Meta tracking.
+A Laravel 13 order management system with a customer storefront for a Bangladesh-based shop. It uses Asia/Dhaka time, BDT, Cash on Delivery and Steadfast courier, with consent-gated GTM/GA4/Meta tracking.
 
-- **Deploying:** [DEPLOYMENT.md](DEPLOYMENT.md): server requirements, deployment steps, backups, restore and rollback.
-- **Production readiness:** [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md): environment checklist, security checklist, smoke tests and owner actions.
-- **Testing report:** [tests/PHASE_17_TESTING_REPORT.md](tests/PHASE_17_TESTING_REPORT.md).
-- **Running tests:** `php artisan test --compact` (needs a MySQL database named `<DB_DATABASE>_test`).
+- **Admin panel:** `/admin` (sign in at `/login`); roles Super Admin, Admin, Manager, Staff.
+- **Storefront:** `/`; catalog, cart, checkout and order confirmation.
+- **Further documentation:**
+  - [DEPLOYMENT.md](DEPLOYMENT.md): server requirements, deployment steps, backups, restore and rollback.
+  - [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md): environment checklist, security checklist, smoke tests and owner actions.
+  - [tests/PHASE_17_TESTING_REPORT.md](tests/PHASE_17_TESTING_REPORT.md): test coverage report.
 
----
+## Requirements
 
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+| Software | Version |
+|---|---|
+| PHP | 8.3+ (developed on 8.5), with `bcmath`, `pdo_mysql`, `mbstring`, `gd`, `exif`, `fileinfo`, `intl`, `openssl`, `curl`, `ctype`, `dom`, `xml`, `tokenizer`, `zip` |
+| Composer | 2.x |
+| MySQL | 8.0.16+ (developed on 8.4); InnoDB, `utf8mb4` |
+| Node.js / npm | Node 22+ (developed on 24) |
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Local setup
 
-## About Laravel
+1. **Get the code and install dependencies**
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+   ```bash
+   git clone https://github.com/Moulin-Talukder/ecommerce-order-system.git
+   cd ecommerce-order-system
+   composer install
+   npm install
+   ```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+2. **Create the environment file and application key**
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-## Learning Laravel
+3. **Create the two MySQL databases**: one for development and one for the test suite.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+   ```sql
+   CREATE DATABASE ecommerce_order_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE ecommerce_order_system_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+   The MySQL user in `.env` needs access to **both** databases.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+4. **Configure the main database** in `.env`:
 
-## Agentic Development
+   ```dotenv
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=ecommerce_order_system
+   DB_USERNAME=your_mysql_user
+   DB_PASSWORD=your_mysql_password
+   ```
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+   **The test database is fixed:** `phpunit.xml` always uses **`ecommerce_order_system_test`** (with the host, username and password from `.env`), whatever `DB_DATABASE` is set to. As a safety guard, `tests/TestCase.php` refuses to run against a database whose name doesn't end in `_test`.
+
+5. **Run the migrations and create the first Super Admin.** Set these in `.env` first:
+
+   ```dotenv
+   ADMIN_NAME="Your Name"
+   ADMIN_EMAIL=you@example.com
+   ADMIN_PASSWORD=   # at least 12 characters, upper and lower case, and a number
+   ```
+
+   ```bash
+   php artisan migrate
+   php artisan db:seed
+   ```
+
+   The seeder creates the Super Admin once. If the account already exists, it never changes its password. Remove `ADMIN_PASSWORD` from `.env` afterwards.
+
+6. **Link public storage**, so product images are served:
+
+   ```bash
+   php artisan storage:link
+   ```
+
+## Running locally
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer run dev
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+This runs `php artisan dev`, which starts the local services, including the Vite dev server. Then open the URL it prints (`APP_URL`, `http://localhost:8000` by default).
 
-## Contributing
+Optional local settings (see `.env.example` for each one):
+- `GTM_CONTAINER_ID`: leave empty locally. Tracking and the consent banner stay off.
+- `STEADFAST_*`: courier credentials. Without them, courier booking reports that it isn't configured.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Tests
 
-## Code of Conduct
+```bash
+php artisan test --compact
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+`composer test` does the same after clearing cached configuration. Tests use the `ecommerce_order_system_test` database (step 4) and never contact Google, Meta or Steadfast. If the guard reports a non-test database, run `php artisan config:clear`.
 
-## Security Vulnerabilities
+Formatting: `vendor/bin/pint --dirty --format agent`.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Production build
 
-## License
+```bash
+npm run build
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This builds the CSS (and fonts) into `public/build`. For a full production deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).

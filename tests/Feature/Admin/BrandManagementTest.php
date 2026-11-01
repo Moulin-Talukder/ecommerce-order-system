@@ -35,7 +35,8 @@ class BrandManagementTest extends TestCase
     public function test_brands_can_be_searched_and_filtered_by_status(): void
     {
         Brand::factory()->create(['name' => 'Walton']);
-        Brand::factory()->create(['name' => 'Samsung']);
+        // Fixed slug: search also matches slugs, and a random factory slug could contain "wal".
+        Brand::factory()->create(['name' => 'Samsung', 'slug' => 'samsung']);
         Brand::factory()->create(['name' => 'Wallmart Retired', 'is_active' => false]);
         $manager = User::factory()->manager()->create();
 
@@ -234,6 +235,20 @@ class BrandManagementTest extends TestCase
         $this->actingAs(User::factory()->manager()->create())
             ->patch(route('admin.brands.status', $brand), [])
             ->assertSessionHasErrors('is_active');
+    }
+
+    public function test_unauthorized_users_get_403_before_any_validation_details(): void
+    {
+        $brand = Brand::factory()->create();
+
+        foreach ([[], ['is_active' => 'not-a-boolean']] as $payload) {
+            $this->actingAs(User::factory()->create())
+                ->patch(route('admin.brands.status', $brand), $payload)
+                ->assertForbidden()
+                ->assertSessionHasNoErrors();
+        }
+
+        $this->assertTrue($brand->refresh()->is_active);
     }
 
     public function test_staff_cannot_change_brand_status(): void

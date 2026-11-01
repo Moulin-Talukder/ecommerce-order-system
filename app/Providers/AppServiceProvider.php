@@ -41,5 +41,13 @@ class AppServiceProvider extends ServiceProvider
                 $phone ? Limit::perHour((int) config('storefront.checkout_attempts_per_hour_per_phone'))->by('checkout-phone:'.$phone)->response($tooMany) : null,
             ]);
         });
+
+        RateLimiter::for('storefront-cart', fn (Request $request) => Limit::perMinute((int) config('storefront.cart_adds_per_minute_per_ip'))
+            ->by('cart-ip:'.$request->ip())
+            ->response(fn () => back()->with('error', 'Too many requests. Please wait a minute and try again.')));
+
+        RateLimiter::for('storefront-consent', fn (Request $request) => Limit::perMinute((int) config('storefront.consent_updates_per_minute_per_ip'))
+            ->by('consent-ip:'.$request->ip())
+            ->response(fn () => back()->with('error', 'Too many requests. Please wait a minute and try again.')));
     }
 }

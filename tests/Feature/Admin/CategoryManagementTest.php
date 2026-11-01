@@ -368,6 +368,20 @@ class CategoryManagementTest extends TestCase
         $this->assertTrue($category->refresh()->is_active);
     }
 
+    public function test_unauthorized_users_get_403_before_any_validation_details(): void
+    {
+        $category = Category::factory()->create();
+
+        foreach ([[], ['is_active' => 'not-a-boolean']] as $payload) {
+            $this->actingAs(User::factory()->create())
+                ->patch(route('admin.categories.status', $category), $payload)
+                ->assertForbidden()
+                ->assertSessionHasNoErrors();
+        }
+
+        $this->assertTrue($category->refresh()->is_active);
+    }
+
     public function test_staff_cannot_change_category_status(): void
     {
         $category = Category::factory()->create();

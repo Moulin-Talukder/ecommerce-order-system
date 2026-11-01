@@ -30,13 +30,13 @@ Route::name('storefront.')->middleware(ProtectSensitiveUrlReferrer::class)->grou
     Route::get('categories/{slug}', [CatalogController::class, 'category'])->name('category');
     Route::get('products/{slug}', [CatalogController::class, 'product'])->name('product');
     Route::livewire('cart', 'pages::storefront.cart')->name('cart');
-    Route::post('cart/items', [CartController::class, 'store'])->name('cart.add');
+    Route::post('cart/items', [CartController::class, 'store'])->middleware('throttle:storefront-cart')->name('cart.add');
     Route::get('checkout', [CheckoutController::class, 'show'])->name('checkout');
     Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:storefront-checkout')->name('checkout.store');
     Route::get('order/{orderNumber}/thank-you', [OrderConfirmationController::class, 'show'])->name('thank-you');
     Route::get('privacy', [PrivacyController::class, 'notice'])->name('privacy');
     Route::get('privacy/settings', [PrivacyController::class, 'settings'])->name('privacy.settings');
-    Route::post('privacy/consent', [PrivacyController::class, 'update'])->name('privacy.consent');
+    Route::post('privacy/consent', [PrivacyController::class, 'update'])->middleware('throttle:storefront-consent')->name('privacy.consent');
 });
 
 /*

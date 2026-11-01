@@ -8,7 +8,7 @@
         <title>{{ isset($title) ? $title.' · ' : '' }}{{ config('app.name') }} Admin</title>
 
         @fonts
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css'])
         @livewireStyles
     </head>
     <body class="h-full font-sans text-gray-900 antialiased" x-data="{ sidebarOpen: false }">

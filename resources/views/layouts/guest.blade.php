@@ -8,7 +8,7 @@
         <title>{{ isset($title) ? $title.' · ' : '' }}{{ config('app.name') }}</title>
 
         @fonts
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css'])
     </head>
     <body class="flex min-h-full items-center justify-center px-4 py-12 font-sans text-gray-900 antialiased">
         <div class="w-full max-w-sm">
