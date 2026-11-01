@@ -57,7 +57,7 @@
         </div>
     </form>
 
-    <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <div class="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table class="min-w-full divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                 <tr>

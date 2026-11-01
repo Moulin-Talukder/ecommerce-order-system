@@ -4,10 +4,10 @@ namespace Database\Seeders;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\AdminPassword;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password;
 use RuntimeException;
 
 class SuperAdminSeeder extends Seeder
@@ -25,7 +25,7 @@ class SuperAdminSeeder extends Seeder
         $validator = Validator::make($credentials, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string', Password::min(12)->letters()->mixedCase()->numbers()],
+            'password' => ['required', 'string', AdminPassword::rule()],
         ]);
 
         if ($validator->fails()) {

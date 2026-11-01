@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\OrderStatusController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductImageController;
 use App\Http\Controllers\Admin\ProductStockController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Storefront\CartController;
 use App\Http\Controllers\Storefront\CatalogController;
 use App\Http\Controllers\Storefront\CheckoutController;
@@ -71,6 +72,10 @@ Route::middleware(['auth', 'admin'])
         Route::post('orders/{order}/courier/sync', [OrderCourierController::class, 'sync'])->name('orders.courier.sync');
 
         Route::resource('customers', CustomerController::class);
+
+        Route::resource('users', UserController::class)->except(['show', 'destroy']);
+        Route::patch('users/{user}/status', [UserController::class, 'updateStatus'])->name('users.status');
+        Route::put('users/{user}/password', [UserController::class, 'updatePassword'])->name('users.password');
         Route::patch('customers/{customer}/status', [CustomerController::class, 'updateStatus'])->name('customers.status');
 
         Route::resource('products', ProductController::class);

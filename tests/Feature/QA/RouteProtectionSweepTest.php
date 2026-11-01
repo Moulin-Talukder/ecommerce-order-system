@@ -54,6 +54,7 @@ class RouteProtectionSweepTest extends TestCase
             'product' => $product->getRouteKey(),
             'image' => ProductImage::factory()->for($product)->create()->getRouteKey(),
             'direction' => 'up',
+            'user' => User::factory()->create()->getRouteKey(),
         ];
     }
 
