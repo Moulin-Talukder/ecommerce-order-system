@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\AuditOrigin;
 use App\Models\User;
 use App\Services\Users\UserService;
 use App\Support\AdminPassword;
@@ -55,7 +56,7 @@ class ResetAdminPassword extends Command
             return self::FAILURE;
         }
 
-        $users->resetPassword($user, $password);
+        $users->resetPassword($user, $password, origin: AuditOrigin::Cli);
 
         $this->info("A new password was set for {$user->email} ({$user->role->label()}). Existing sessions were signed out.");
 

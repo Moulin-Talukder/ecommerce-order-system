@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Audit\AuthenticationAuditor;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +28,10 @@ class EnsureUserCanAccessAdmin
 
         if ($user?->canAccessAdmin()) {
             return $next($request);
+        }
+
+        if ($user) {
+            app(AuthenticationAuditor::class)->expectForcedLogout($user->is_active ? 'admin_access_revoked' : 'account_deactivated');
         }
 
         Auth::guard('web')->logout();

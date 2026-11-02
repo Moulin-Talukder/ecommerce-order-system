@@ -2,12 +2,18 @@
 
 namespace App\Providers;
 
+use App\Services\Audit\AuthenticationAuditor;
 use App\Services\Storefront\Catalog;
 use App\Services\Tracking\DataLayer;
 use App\Support\PhoneNumber;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
         // One category tree per request for all storefront lookups.
         $this->app->scoped(Catalog::class);
         $this->app->scoped(DataLayer::class);
+        // Scoped so a forced logout marked by the admin middleware reaches the Logout listener.
+        $this->app->scoped(AuthenticationAuditor::class);
     }
 
     /**
@@ -30,6 +38,12 @@ class AppServiceProvider extends ServiceProvider
     {
         // Surface N+1 queries during development and tests; production only logs nothing.
         Model::preventLazyLoading(! $this->app->isProduction());
+
+        // Sign-in audit trail (best-effort; see AuthenticationAuditor).
+        Event::listen(Login::class, [AuthenticationAuditor::class, 'handleLogin']);
+        Event::listen(Failed::class, [AuthenticationAuditor::class, 'handleFailed']);
+        Event::listen(Lockout::class, [AuthenticationAuditor::class, 'handleLockout']);
+        Event::listen(Logout::class, [AuthenticationAuditor::class, 'handleLogout']);
 
         RateLimiter::for('storefront-checkout', function (Request $request): array {
             $tooMany = fn () => to_route('storefront.checkout')->withInput()

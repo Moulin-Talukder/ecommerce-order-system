@@ -63,7 +63,7 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        $user = $this->users->create($request->validated());
+        $user = $this->users->create($request->validated(), $request->user());
 
         return to_route('admin.users.index')->with('success', "Account for {$user->name} created.");
     }
@@ -80,7 +80,7 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $this->users->update($user, $request->validated());
+        $this->users->update($user, $request->validated(), $request->user());
 
         return to_route('admin.users.index')->with('success', "Account for {$user->name} updated.");
     }
@@ -88,7 +88,7 @@ class UserController extends Controller
     public function updateStatus(UpdateUserStatusRequest $request, User $user): RedirectResponse
     {
         $active = $request->boolean('is_active');
-        $this->users->setActive($user, $active);
+        $this->users->setActive($user, $active, $request->user());
 
         return back()->with('success', $active
             ? "{$user->name} can sign in again."
@@ -97,7 +97,7 @@ class UserController extends Controller
 
     public function updatePassword(ResetUserPasswordRequest $request, User $user): RedirectResponse
     {
-        $this->users->resetPassword($user, $request->validated('password'));
+        $this->users->resetPassword($user, $request->validated('password'), $request->user());
 
         return to_route('admin.users.edit', $user)->with('success', "A new password was set for {$user->name}, and they were signed out everywhere.");
     }

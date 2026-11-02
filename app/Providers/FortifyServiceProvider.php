@@ -3,7 +3,10 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Audit\AuthenticationAuditor;
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -44,6 +47,8 @@ class FortifyServiceProvider extends ServiceProvider
             }
 
             if (! $user->canAccessAdmin()) {
+                app(AuthenticationAuditor::class)->deactivatedLoginAttempt($user);
+
                 throw ValidationException::withMessages([
                     Fortify::username() => __('Your account has been deactivated. Please contact an administrator.'),
                 ]);
@@ -57,10 +62,26 @@ class FortifyServiceProvider extends ServiceProvider
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
             return [
-                Limit::perMinute(5)->by($throttleKey),
-                Limit::perMinute(20)->by('login-ip:'.$request->ip()),
+                Limit::perMinute(5)->by($throttleKey)->response(self::lockedOut(...)),
+                Limit::perMinute(20)->by('login-ip:'.$request->ip())->response(self::lockedOut(...)),
             ];
         });
+    }
+
+    /**
+     * The usual 429 response, plus the Lockout event. Fortify only fires
+     * Lockout when it throttles logins itself, which it skips when a named
+     * login limiter is configured, as here.
+     *
+     * @param  array<string, int|string>  $headers
+     *
+     * @throws ThrottleRequestsException
+     */
+    private static function lockedOut(Request $request, array $headers): never
+    {
+        event(new Lockout($request));
+
+        throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
     }
 
     /**
