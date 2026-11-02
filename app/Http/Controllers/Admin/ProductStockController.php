@@ -17,7 +17,7 @@ class ProductStockController extends Controller
 
     public function store(StockAdjustmentRequest $request, Product $product): RedirectResponse
     {
-        $movement = $this->stock->adjust(
+        $movement = $this->stock->adjustManually(
             $product,
             $request->integer('quantity_change'),
             $request->enum('type', StockMovementType::class),
@@ -32,7 +32,7 @@ class ProductStockController extends Controller
     public function availability(UpdateProductAvailabilityRequest $request, Product $product): RedirectResponse
     {
         $status = $request->enum('stock_status', StockStatus::class);
-        $this->stock->setManualStatus($product, $status);
+        $this->stock->setManualStatus($product, $status, $request->user());
 
         return to_route('admin.products.show', $product)->with('success', "Availability set to “{$status->label()}”.");
     }

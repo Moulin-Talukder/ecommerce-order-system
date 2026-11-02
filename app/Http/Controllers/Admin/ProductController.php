@@ -105,7 +105,7 @@ class ProductController extends Controller
 
     public function update(ProductRequest $request, Product $product): RedirectResponse
     {
-        $this->products->update($product, $request->validated());
+        $this->products->update($product, $request->validated(), $request->user());
 
         return to_route('admin.products.show', $product)->with('success', "Product “{$product->name}” updated.");
     }
@@ -113,16 +113,16 @@ class ProductController extends Controller
     public function updateStatus(UpdateProductStatusRequest $request, Product $product): RedirectResponse
     {
         $status = $request->enum('status', ProductStatus::class);
-        $this->products->setStatus($product, $status);
+        $this->products->setStatus($product, $status, $request->user());
 
         return back()->with('success', "Product “{$product->name}” is now {$status->label()}.");
     }
 
-    public function destroy(Product $product): RedirectResponse
+    public function destroy(Request $request, Product $product): RedirectResponse
     {
         Gate::authorize('delete', $product);
 
-        $this->products->delete($product);
+        $this->products->delete($product, $request->user());
 
         return to_route('admin.products.index')->with('success', "Product “{$product->name}” deleted.");
     }

@@ -71,17 +71,20 @@ class AuditRedactor
             'sku' => self::PLAIN, 'purchase_price' => self::PLAIN, 'selling_price' => self::PLAIN,
             'discount_price' => self::PLAIN, 'manage_stock' => self::PLAIN, 'stock_quantity' => self::PLAIN,
             'stock_status' => self::PLAIN, 'low_stock_threshold' => self::PLAIN, 'status' => self::PLAIN,
-            'is_featured' => self::PLAIN,
+            'is_featured' => self::PLAIN, 'weight' => self::PLAIN, 'length' => self::PLAIN, 'width' => self::PLAIN,
+            'height' => self::PLAIN, 'short_description' => self::TEXT, 'description' => self::TEXT,
+            'meta_title' => self::TEXT, 'meta_description' => self::TEXT,
         ],
         'product_image' => [
             'product_id' => self::PLAIN, 'alt_text' => self::PLAIN, 'sort_order' => self::PLAIN,
         ],
         'category' => [
             'parent_id' => self::PLAIN, 'name' => self::PLAIN, 'slug' => self::PLAIN, 'is_active' => self::PLAIN,
-            'sort_order' => self::PLAIN,
+            'sort_order' => self::PLAIN, 'description' => self::TEXT, 'meta_title' => self::TEXT,
+            'meta_description' => self::TEXT,
         ],
         'brand' => [
-            'name' => self::PLAIN, 'slug' => self::PLAIN, 'is_active' => self::PLAIN,
+            'name' => self::PLAIN, 'slug' => self::PLAIN, 'is_active' => self::PLAIN, 'description' => self::TEXT,
         ],
         'customer' => [
             'name' => self::NAME, 'email' => self::EMAIL, 'phone' => self::PHONE, 'alternate_phone' => self::PHONE,
@@ -187,6 +190,16 @@ class AuditRedactor
         }
 
         return $this->fit($clean);
+    }
+
+    /**
+     * The fields of a subject type that may be audited.
+     *
+     * @return list<string>
+     */
+    public function fields(string $subjectType): array
+    {
+        return array_keys(self::ALLOWLIST[$subjectType] ?? []);
     }
 
     /**

@@ -52,7 +52,7 @@ class BrandController extends Controller
 
     public function store(BrandRequest $request): RedirectResponse
     {
-        $brand = $this->brands->create($request->validated());
+        $brand = $this->brands->create($request->validated(), $request->user());
 
         return to_route('admin.brands.index')->with('success', "Brand “{$brand->name}” created.");
     }
@@ -70,7 +70,7 @@ class BrandController extends Controller
 
     public function update(BrandRequest $request, Brand $brand): RedirectResponse
     {
-        $this->brands->update($brand, $request->validated());
+        $this->brands->update($brand, $request->validated(), $request->user());
 
         return to_route('admin.brands.index')->with('success', "Brand “{$brand->name}” updated.");
     }
@@ -79,16 +79,16 @@ class BrandController extends Controller
     {
         Gate::authorize('update', $brand);
 
-        $this->brands->setActive($brand, $request->boolean('is_active'));
+        $this->brands->setActive($brand, $request->boolean('is_active'), $request->user());
 
         return back()->with('success', "Brand “{$brand->name}” ".($brand->is_active ? 'activated.' : 'deactivated.'));
     }
 
-    public function destroy(Brand $brand): RedirectResponse
+    public function destroy(Request $request, Brand $brand): RedirectResponse
     {
         Gate::authorize('delete', $brand);
 
-        $this->brands->delete($brand);
+        $this->brands->delete($brand, $request->user());
 
         return to_route('admin.brands.index')->with('success', "Brand “{$brand->name}” deleted.");
     }

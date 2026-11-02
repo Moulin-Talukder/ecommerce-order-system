@@ -7,6 +7,7 @@ use App\Enums\AuditOrigin;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use InvalidArgumentException;
 
 /**
@@ -66,6 +67,35 @@ class AuditLogger
         ])->save();
 
         return $log;
+    }
+
+    /**
+     * The auditable fields of a subject as currently loaded (the subject
+     * type's allowlist in {@see AuditRedactor}), e.g. before an update.
+     *
+     * @return array<string, mixed>
+     */
+    public function snapshot(Model $subject): array
+    {
+        return $subject->only($this->redactor->fields(AuditLog::subjectTypeFor($subject)));
+    }
+
+    /**
+     * Record an update from the subject's last save, with only the audited
+     * fields that actually changed. Nothing is recorded when none did.
+     *
+     * @param  array<string, mixed>  $before  {@see snapshot()} taken before the save
+     * @param  array<array-key, mixed>  $context
+     */
+    public function recordChanges(AuditEvent $event, ?User $actor, Model $subject, array $before, array $context = []): ?AuditLog
+    {
+        $changed = array_keys(array_intersect_key($subject->getChanges(), $before));
+
+        if ($changed === []) {
+            return null;
+        }
+
+        return $this->record($event, $actor, $subject, Arr::only($before, $changed), $subject->only($changed), $context);
     }
 
     /**

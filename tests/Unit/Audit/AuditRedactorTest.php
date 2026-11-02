@@ -99,7 +99,11 @@ class AuditRedactorTest extends TestCase
         ]);
 
         $this->assertSame(['name' => 'Karim Staff', 'email' => 'karim@example.test', 'role' => 'staff', 'is_active' => true], $values);
-        $this->assertNull($this->redactor->values('product', ['description' => 'Long marketing copy', 'path' => 'x.jpg']));
+        $this->assertSame(
+            ['description' => AuditRedactor::CHANGED],
+            $this->redactor->values('product', ['description' => 'Long marketing copy', 'path' => 'x.jpg', 'stock_movements' => [1]]),
+            'Free text is only marked as changed; unlisted fields are dropped.',
+        );
         $this->assertNull($this->redactor->values(null, ['name' => 'Anything']), 'Without a subject type nothing is kept.');
         $this->assertNull($this->redactor->values('unknown_type', ['name' => 'Anything']));
     }

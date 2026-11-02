@@ -2,9 +2,12 @@
 
 namespace App\Services\Catalog;
 
+use App\Enums\AuditEvent;
 use App\Exceptions\Media\InvalidImageException;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\Media\ImageUploader;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -15,23 +18,30 @@ use Throwable;
 /**
  * Manages a product's images. Display order is sort_order (0 = primary);
  * every operation re-numbers the remaining images 0..n-1.
+ *
+ * Each image change is audited in its transaction (one row per image; file
+ * locations and contents are never recorded), so a failed audit write rolls
+ * the change back and removes any files already stored.
  */
 class ProductImageService
 {
-    public function __construct(private ImageUploader $uploader) {}
+    public function __construct(
+        private ImageUploader $uploader,
+        private AuditLogger $audit,
+    ) {}
 
     /**
      * @param  list<UploadedFile>  $files
      * @return Collection<int, ProductImage>
      */
-    public function add(Product $product, array $files): Collection
+    public function add(Product $product, array $files, ?User $actor = null): Collection
     {
         $disk = config('media.images.disk');
         $max = config('media.products.max_images');
         $storedPaths = [];
 
         try {
-            return DB::transaction(function () use ($product, $files, $disk, $max, &$storedPaths): Collection {
+            return DB::transaction(function () use ($product, $files, $disk, $max, $actor, &$storedPaths): Collection {
                 // Serialize concurrent uploads for the same product so the image limit holds.
                 Product::query()->lockForUpdate()->findOrFail($product->id);
 
@@ -50,11 +60,14 @@ class ProductImageService
                     $path = $this->uploader->store($file, "products/{$product->id}", $disk);
                     $storedPaths[] = $path;
 
-                    $images->push($product->images()->create([
+                    $image = $product->images()->create([
                         'disk' => $disk,
                         'path' => $path,
                         'sort_order' => $nextPosition++,
-                    ]));
+                    ]);
+
+                    $this->audit->record(AuditEvent::ProductImageAdded, $actor, $image, new: $this->audit->snapshot($image));
+                    $images->push($image);
                 }
 
                 return $images;
@@ -72,19 +85,27 @@ class ProductImageService
         }
     }
 
-    public function updateAltText(ProductImage $image, ?string $altText): ProductImage
+    public function updateAltText(ProductImage $image, ?string $altText, ?User $actor = null): ProductImage
     {
-        $image->update(['alt_text' => $altText]);
+        return DB::transaction(function () use ($image, $altText, $actor): ProductImage {
+            $locked = ProductImage::query()->lockForUpdate()->findOrFail($image->id);
+            $before = $this->audit->snapshot($locked);
 
-        return $image;
+            $locked->update(['alt_text' => $altText]);
+            $this->audit->recordChanges(AuditEvent::ProductImageUpdated, $actor, $locked, $before);
+
+            $image->setRawAttributes($locked->getAttributes(), true);
+
+            return $image;
+        });
     }
 
     /**
      * Move an image one place up/down, or to the front (making it primary).
      */
-    public function move(ProductImage $image, string $direction): void
+    public function move(ProductImage $image, string $direction, ?User $actor = null): void
     {
-        DB::transaction(function () use ($image, $direction): void {
+        DB::transaction(function () use ($image, $direction, $actor): void {
             $ids = $image->product->images()->lockForUpdate()->pluck('id')->all();
             $index = array_search($image->id, $ids, true);
 
@@ -98,14 +119,22 @@ class ProductImageService
             array_splice($ids, $target, 0, [$image->id]);
 
             $this->renumber($ids);
+
+            if ($target !== $index) {
+                $this->audit->record(AuditEvent::ProductImageReordered, $actor, $image, ['sort_order' => $index], ['sort_order' => $target], [
+                    'product_id' => $image->product_id,
+                    'direction' => $direction,
+                ]);
+            }
         });
     }
 
-    public function delete(ProductImage $image): void
+    public function delete(ProductImage $image, ?User $actor = null): void
     {
-        DB::transaction(function () use ($image): void {
+        DB::transaction(function () use ($image, $actor): void {
             $product = $image->product;
             $image->delete();
+            $this->audit->record(AuditEvent::ProductImageDeleted, $actor, $image, old: $this->audit->snapshot($image));
 
             $this->renumber($product->images()->lockForUpdate()->pluck('id')->all());
 

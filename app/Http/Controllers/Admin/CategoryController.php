@@ -57,7 +57,7 @@ class CategoryController extends Controller
 
     public function store(CategoryRequest $request): RedirectResponse
     {
-        $category = $this->categories->create($request->validated());
+        $category = $this->categories->create($request->validated(), $request->user());
 
         return to_route('admin.categories.index')->with('success', "Category “{$category->name}” created.");
     }
@@ -76,7 +76,7 @@ class CategoryController extends Controller
 
     public function update(CategoryRequest $request, Category $category): RedirectResponse
     {
-        $this->categories->update($category, $request->validated());
+        $this->categories->update($category, $request->validated(), $request->user());
 
         return to_route('admin.categories.index')->with('success', "Category “{$category->name}” updated.");
     }
@@ -85,16 +85,16 @@ class CategoryController extends Controller
     {
         Gate::authorize('update', $category);
 
-        $this->categories->setActive($category, $request->boolean('is_active'));
+        $this->categories->setActive($category, $request->boolean('is_active'), $request->user());
 
         return back()->with('success', "Category “{$category->name}” ".($category->is_active ? 'activated.' : 'deactivated.'));
     }
 
-    public function destroy(Category $category): RedirectResponse
+    public function destroy(Request $request, Category $category): RedirectResponse
     {
         Gate::authorize('delete', $category);
 
-        $this->categories->delete($category);
+        $this->categories->delete($category, $request->user());
 
         return to_route('admin.categories.index')->with('success', "Category “{$category->name}” deleted.");
     }
