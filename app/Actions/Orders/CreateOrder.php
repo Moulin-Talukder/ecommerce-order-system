@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Enums\AuditOrigin;
 use App\Enums\CustomerStatus;
 use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
@@ -68,16 +69,18 @@ class CreateOrder
      *     customer_note?: string|null,
      *     admin_note?: string|null,
      * } $data
+     * @param  AuditOrigin  $origin  Where the order comes from, for the audit trail
+     *                               (storefront checkout passes Storefront explicitly).
      *
      * @throws OrderException|InsufficientStockException
      */
-    public function handle(array $data, ?User $placedBy = null): Order
+    public function handle(array $data, ?User $placedBy = null, AuditOrigin $origin = AuditOrigin::Admin): Order
     {
         $quantities = $this->quantitiesByProduct($data['items']);
 
         for ($attempt = 1; ; $attempt++) {
             try {
-                $order = DB::transaction(fn () => $this->place($data, $quantities, $placedBy));
+                $order = DB::transaction(fn () => $this->place($data, $quantities, $placedBy, $origin));
                 break;
             } catch (UniqueConstraintViolationException $exception) {
                 if (! str_contains($exception->getMessage(), 'orders_order_number_unique') || $attempt >= self::MAX_NUMBER_ATTEMPTS) {
@@ -95,7 +98,7 @@ class CreateOrder
      * @param  array<string, mixed>  $data
      * @param  array<int, int>  $quantities  product id => quantity, sorted by id
      */
-    private function place(array $data, array $quantities, ?User $placedBy): Order
+    private function place(array $data, array $quantities, ?User $placedBy, AuditOrigin $origin): Order
     {
         $customer = $this->customers->findOrCreateByPhone([
             'name' => $data['customer_name'],
@@ -106,7 +109,7 @@ class CreateOrder
             'area' => $data['shipping_area'] ?? null,
             'city' => $data['shipping_city'] ?? null,
             'postal_code' => $data['shipping_postal_code'] ?? null,
-        ]);
+        ], $placedBy, $origin);
 
         if ($customer->status === CustomerStatus::Blocked) {
             throw OrderException::customerBlocked($customer->name);

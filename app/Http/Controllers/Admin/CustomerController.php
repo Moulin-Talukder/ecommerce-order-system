@@ -51,7 +51,7 @@ class CustomerController extends Controller
 
     public function store(CustomerRequest $request): RedirectResponse
     {
-        $customer = $this->customers->create($request->validated());
+        $customer = $this->customers->create($request->validated(), $request->user());
 
         return to_route('admin.customers.show', $customer)->with('success', "Customer {$customer->name} created.");
     }
@@ -76,7 +76,7 @@ class CustomerController extends Controller
 
     public function update(CustomerRequest $request, Customer $customer): RedirectResponse
     {
-        $this->customers->update($customer, $request->validated());
+        $this->customers->update($customer, $request->validated(), $request->user());
 
         return to_route('admin.customers.show', $customer)->with('success', "Customer {$customer->name} updated.");
     }
@@ -84,18 +84,18 @@ class CustomerController extends Controller
     public function updateStatus(UpdateCustomerStatusRequest $request, Customer $customer): RedirectResponse
     {
         $status = $request->enum('status', CustomerStatus::class);
-        $this->customers->setStatus($customer, $status);
+        $this->customers->setStatus($customer, $status, $request->user());
 
         return back()->with('success', $status === CustomerStatus::Blocked
             ? "{$customer->name} has been blocked."
             : "{$customer->name} has been unblocked.");
     }
 
-    public function destroy(Customer $customer): RedirectResponse
+    public function destroy(Request $request, Customer $customer): RedirectResponse
     {
         Gate::authorize('delete', $customer);
 
-        $this->customers->delete($customer);
+        $this->customers->delete($customer, $request->user());
 
         return to_route('admin.customers.index')->with('success', "Customer {$customer->name} deleted.");
     }

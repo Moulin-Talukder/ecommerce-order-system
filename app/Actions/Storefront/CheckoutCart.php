@@ -3,6 +3,7 @@
 namespace App\Actions\Storefront;
 
 use App\Actions\Orders\CreateOrder;
+use App\Enums\AuditOrigin;
 use App\Enums\OrderSource;
 use App\Enums\PaymentMethod;
 use App\Exceptions\Inventory\InsufficientStockException;
@@ -62,7 +63,7 @@ class CheckoutCart
                 'payment_method' => PaymentMethod::CashOnDelivery,
                 'source' => OrderSource::Website,
                 'customer_note' => $details['note'] ?? null,
-            ]);
+            ], origin: AuditOrigin::Storefront);
         } catch (InsufficientStockException) {
             $this->cart->summary();
 

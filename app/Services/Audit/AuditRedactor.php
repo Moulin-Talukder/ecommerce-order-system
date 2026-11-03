@@ -88,7 +88,8 @@ class AuditRedactor
         ],
         'customer' => [
             'name' => self::NAME, 'email' => self::EMAIL, 'phone' => self::PHONE, 'alternate_phone' => self::PHONE,
-            'address' => self::TEXT, 'notes' => self::TEXT, 'status' => self::PLAIN,
+            'address' => self::TEXT, 'notes' => self::TEXT, 'status' => self::PLAIN, 'city' => self::TEXT,
+            'area' => self::TEXT, 'postal_code' => self::TEXT,
         ],
         'order' => [
             'order_number' => self::PLAIN, 'customer_id' => self::PLAIN, 'customer_name' => self::NAME,
