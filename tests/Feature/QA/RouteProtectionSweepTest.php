@@ -3,6 +3,7 @@
 namespace Tests\Feature\QA;
 
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Customer;
@@ -55,6 +56,7 @@ class RouteProtectionSweepTest extends TestCase
             'image' => ProductImage::factory()->for($product)->create()->getRouteKey(),
             'direction' => 'up',
             'user' => User::factory()->create()->getRouteKey(),
+            'auditLog' => AuditLog::factory()->create()->getRouteKey(),
         ];
     }
 

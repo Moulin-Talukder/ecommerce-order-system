@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CustomerController;
@@ -76,6 +77,9 @@ Route::middleware(['auth', 'admin'])
         Route::resource('users', UserController::class)->except(['show', 'destroy']);
         Route::patch('users/{user}/status', [UserController::class, 'updateStatus'])->name('users.status');
         Route::put('users/{user}/password', [UserController::class, 'updatePassword'])->name('users.password');
+
+        Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+        Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
         Route::patch('customers/{customer}/status', [CustomerController::class, 'updateStatus'])->name('customers.status');
 
         Route::resource('products', ProductController::class);
