@@ -69,7 +69,7 @@ class CheckoutAuditTest extends TestCase
         $this->checkout()->assertRedirect();
 
         $order = Order::query()->sole();
-        $log = AuditLog::query()->sole();
+        $log = AuditLog::query()->where('event', AuditEvent::CustomerCreated)->sole();
         $this->assertSame([AuditEvent::CustomerCreated, AuditOrigin::Storefront], [$log->event, $log->origin]);
         $this->assertSame([null, null, null, null], [$log->actor_id, $log->actor_name, $log->actor_email, $log->actor_role]);
         $this->assertSame(['customer', $order->customer_id, 'R••• A••• · ••••••••678'], [$log->subject_type, $log->subject_id, $log->subject_label]);
@@ -100,7 +100,7 @@ class CheckoutAuditTest extends TestCase
         $this->checkout(['phone' => '+880 1712-345678'])->assertRedirect();
 
         $this->assertSame($existing->id, Order::query()->sole()->customer_id);
-        $this->assertSame(0, AuditLog::query()->count());
+        $this->assertSame(0, AuditLog::query()->where('event', AuditEvent::CustomerCreated)->count());
     }
 
     public function test_a_repeated_submission_creates_one_order_and_one_customer_record(): void
@@ -109,7 +109,7 @@ class CheckoutAuditTest extends TestCase
         $this->checkout()->assertRedirect();
 
         $this->assertSame(1, Order::query()->count());
-        $this->assertSame(1, AuditLog::query()->count());
+        $this->assertSame(1, AuditLog::query()->where('event', AuditEvent::CustomerCreated)->count());
     }
 
     public function test_a_failed_checkout_rolls_back_the_new_customer_and_its_audit_row(): void

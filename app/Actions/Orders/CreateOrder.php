@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Enums\AuditEvent;
 use App\Enums\AuditOrigin;
 use App\Enums\CustomerStatus;
 use App\Enums\OrderSource;
@@ -16,6 +17,7 @@ use App\Exceptions\Orders\OrderException;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\Customers\CustomerService;
 use App\Services\Inventory\StockService;
 use App\Services\Orders\OrderCalculator;
@@ -35,9 +37,10 @@ use Illuminate\Support\Facades\DB;
  *  5. insert the order + item snapshots with a generated order number;
  *  6. deduct stock through {@see StockService} (sale movements linked to
  *     the order);
- *  7. write the initial status history row.
+ *  7. write the initial status history row;
+ *  8. audit order.created (a new customer is audited by CustomerService).
  *
- * Any failure rolls everything back. {@see OrderPlaced} is dispatched only
+ * Any failure rolls everything back, including a failed audit write. {@see OrderPlaced} is dispatched only
  * after the transaction commits.
  */
 class CreateOrder
@@ -49,6 +52,7 @@ class CreateOrder
         private StockService $stock,
         private OrderCalculator $calculator,
         private OrderNumberGenerator $numbers,
+        private AuditLogger $audit,
     ) {}
 
     /**
@@ -190,6 +194,11 @@ class CreateOrder
             'changed_by' => $placedBy?->id,
             'note' => 'Order placed',
         ]);
+
+        $this->audit->record(AuditEvent::OrderCreated, $placedBy, $order, new: $this->audit->snapshot($order), context: [
+            'item_count' => count($quantities),
+            'items' => array_map(fn (int $productId, int $quantity) => ['product_id' => $productId, 'quantity' => $quantity], array_keys($quantities), $quantities),
+        ], origin: $origin);
 
         return $order;
     }

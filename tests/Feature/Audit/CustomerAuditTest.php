@@ -282,22 +282,22 @@ class CustomerAuditTest extends TestCase
     {
         $order = $this->placeAdminOrder(Product::factory()->withStock(5)->create());
 
-        $log = AuditLog::query()->sole();
+        $log = AuditLog::query()->where('event', AuditEvent::CustomerCreated)->sole();
         $this->assertSame([AuditEvent::CustomerCreated, AuditOrigin::Admin, $this->manager->id], [$log->event, $log->origin, $log->actor_id]);
         $this->assertSame(['customer', $order->customer_id, 'K••• U••• · ••••••••222'], [$log->subject_type, $log->subject_id, $log->subject_label]);
         $this->assertSame([AuditRedactor::CHANGED, AuditRedactor::CHANGED], [$log->new_values['address'], $log->new_values['city']]);
         $this->assertStringNotContainsString('Uttara', $this->rawAuditRows());
-        $this->assertSame(0, AuditLog::query()->where('subject_type', 'order')->count(), 'Order events belong to a later phase.');
+        $this->assertSame(1, AuditLog::query()->where('event', AuditEvent::OrderCreated)->count(), 'The order itself is audited separately.');
     }
 
-    public function test_an_admin_order_for_an_existing_customer_records_nothing(): void
+    public function test_an_admin_order_for_an_existing_customer_records_no_customer_creation(): void
     {
         $existing = Customer::factory()->create(['phone' => '01811112222']);
 
         $order = $this->placeAdminOrder(Product::factory()->withStock(5)->create(), ['customer_phone' => '+880 1811-112222']);
 
         $this->assertSame($existing->id, $order->customer_id);
-        $this->assertSame(0, AuditLog::query()->count());
+        $this->assertSame(0, AuditLog::query()->where('event', AuditEvent::CustomerCreated)->count());
     }
 
     public function test_a_customer_created_concurrently_is_reused_without_a_creation_record(): void
@@ -308,7 +308,7 @@ class CustomerAuditTest extends TestCase
 
         $this->assertSame('Concurrent', $order->customer->name);
         $this->assertSame(1, Customer::query()->count());
-        $this->assertSame(0, AuditLog::query()->count());
+        $this->assertSame(0, AuditLog::query()->where('event', AuditEvent::CustomerCreated)->count());
     }
 
     public function test_a_failed_order_rolls_back_the_new_customer_and_its_audit_row(): void

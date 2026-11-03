@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Enums\AuditEvent;
 use App\Enums\OrderStatus;
 use App\Enums\StockMovementType;
 use App\Events\OrderStatusChanged;
@@ -9,6 +10,7 @@ use App\Exceptions\Orders\InvalidOrderTransitionException;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\Inventory\StockService;
 use Illuminate\Support\Facades\DB;
 
@@ -24,10 +26,17 @@ use Illuminate\Support\Facades\DB;
  *    fails as an invalid transition;
  *  - independently, restocking is skipped if the order already has a
  *    cancellation/return stock movement, so stock can never be restored twice.
+ *
+ * Each change is audited once, in the same transaction: order.cancelled or
+ * order.returned (with the quantities put back, which are not audited again
+ * as stock events), otherwise order.status_changed.
  */
 class ChangeOrderStatus
 {
-    public function __construct(private StockService $stock) {}
+    public function __construct(
+        private StockService $stock,
+        private AuditLogger $audit,
+    ) {}
 
     /**
      * @throws InvalidOrderTransitionException
@@ -51,9 +60,20 @@ class ChangeOrderStatus
                 'note' => $note,
             ]);
 
-            if ($to->restoresStock()) {
-                $this->restoreStock($locked, $to, $user);
-            }
+            $restocked = $to->restoresStock() ? $this->restoreStock($locked, $to, $user) : null;
+
+            $this->audit->record(
+                match ($to) {
+                    OrderStatus::Cancelled => AuditEvent::OrderCancelled,
+                    OrderStatus::Returned => AuditEvent::OrderReturned,
+                    default => AuditEvent::OrderStatusChanged,
+                },
+                $user,
+                $locked,
+                ['status' => $from],
+                ['status' => $to],
+                array_filter(['note' => $note, 'restocked' => $restocked], fn ($value) => $value !== null),
+            );
 
             $order->setRawAttributes($locked->getAttributes(), true);
 
@@ -67,15 +87,17 @@ class ChangeOrderStatus
 
     /**
      * Return exactly what this order's sale movements took, once.
+     *
+     * @return list<array{product_id: int, quantity: int}> what was put back
      */
-    private function restoreStock(Order $order, OrderStatus $to, ?User $user): void
+    private function restoreStock(Order $order, OrderStatus $to, ?User $user): array
     {
         $alreadyRestored = $order->stockMovements()
             ->whereIn('type', [StockMovementType::Cancellation, StockMovementType::Return])
             ->exists();
 
         if ($alreadyRestored) {
-            return;
+            return [];
         }
 
         $soldByProduct = $order->stockMovements()
@@ -87,6 +109,7 @@ class ChangeOrderStatus
 
         $type = $to === OrderStatus::Cancelled ? StockMovementType::Cancellation : StockMovementType::Return;
         $note = "Order {$order->order_number} ".strtolower($to->label());
+        $restocked = [];
 
         foreach ($soldByProduct as $productId => $quantity) {
             $product = Product::query()->find($productId);
@@ -94,7 +117,10 @@ class ChangeOrderStatus
             // Products that stopped tracking stock since the sale have nothing to put back.
             if ($product?->manage_stock && (int) $quantity > 0) {
                 $this->stock->adjust($product, (int) $quantity, $type, $user, $note, $order);
+                $restocked[] = ['product_id' => (int) $productId, 'quantity' => (int) $quantity];
             }
         }
+
+        return $restocked;
     }
 }

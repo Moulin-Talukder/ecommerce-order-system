@@ -98,7 +98,8 @@ class AuditRedactor
             'admin_note' => self::TEXT, 'currency' => self::PLAIN, 'subtotal' => self::PLAIN,
             'discount_total' => self::PLAIN, 'delivery_charge' => self::PLAIN, 'total' => self::PLAIN,
             'amount_paid' => self::PLAIN, 'payment_method' => self::PLAIN, 'payment_status' => self::PLAIN,
-            'status' => self::PLAIN, 'source' => self::PLAIN,
+            'status' => self::PLAIN, 'source' => self::PLAIN, 'shipping_city' => self::TEXT,
+            'shipping_area' => self::TEXT, 'shipping_postal_code' => self::TEXT,
         ],
         'payment' => [
             'order_id' => self::PLAIN, 'type' => self::PLAIN, 'method' => self::PLAIN, 'status' => self::PLAIN,

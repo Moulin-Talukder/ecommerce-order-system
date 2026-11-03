@@ -121,7 +121,7 @@ class OrderController extends Controller
 
     public function update(UpdateOrderDetailsRequest $request, Order $order, UpdateOrderDetails $updateDetails): RedirectResponse
     {
-        $updateDetails->handle($order, $request->validated());
+        $updateDetails->handle($order, $request->validated(), $request->user());
 
         return to_route('admin.orders.show', $order)->with('success', "Order {$order->order_number} updated.");
     }
