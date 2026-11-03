@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Enums\AuditEvent;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentTransactionStatus;
 use App\Enums\PaymentType;
@@ -9,6 +10,7 @@ use App\Exceptions\Orders\PaymentException;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\Orders\PaymentLedger;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
@@ -16,10 +18,16 @@ use Illuminate\Support\Facades\DB;
 /**
  * Records money returned to the customer. A refund is a separate positive
  * ledger row of type "refund"; it can never exceed what has been paid.
+ *
+ * Audited as payment.refunded in the same transaction (the reason is stored
+ * only as "[changed]"); a failed audit write rolls it all back.
  */
 class RecordRefund
 {
-    public function __construct(private PaymentLedger $ledger) {}
+    public function __construct(
+        private PaymentLedger $ledger,
+        private AuditLogger $audit,
+    ) {}
 
     /**
      * @throws PaymentException
@@ -52,7 +60,15 @@ class RecordRefund
             ]);
             $refund->forceFill(['recorded_by' => $user?->id])->save();
 
+            $summaryBefore = $locked->only(['payment_status', 'amount_paid']);
             $this->ledger->refresh($locked);
+
+            $this->audit->record(AuditEvent::PaymentRefunded, $user, $refund, new: $this->audit->snapshot($refund), context: [
+                'order_number' => $locked->order_number,
+                'order_payment_status' => ['from' => $summaryBefore['payment_status'], 'to' => $locked->payment_status],
+                'order_amount_paid' => ['from' => $summaryBefore['amount_paid'], 'to' => $locked->amount_paid],
+            ]);
+
             $order->setRawAttributes($locked->getAttributes(), true);
 
             return $refund;

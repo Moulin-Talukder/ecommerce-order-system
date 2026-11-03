@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Enums\AuditEvent;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentTransactionStatus;
@@ -10,6 +11,7 @@ use App\Exceptions\Orders\PaymentException;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\Orders\PaymentLedger;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
@@ -17,10 +19,16 @@ use Illuminate\Support\Facades\DB;
 /**
  * Records a received (or failed) payment against an order, e.g. COD cash
  * collected or a bank transfer, and refreshes the order's payment summary.
+ *
+ * Audited as payment.recorded in the same transaction, with the order's
+ * payment summary before and after; a failed audit write rolls it all back.
  */
 class RecordPayment
 {
-    public function __construct(private PaymentLedger $ledger) {}
+    public function __construct(
+        private PaymentLedger $ledger,
+        private AuditLogger $audit,
+    ) {}
 
     /**
      * @throws PaymentException
@@ -67,7 +75,15 @@ class RecordPayment
             ]);
             $payment->forceFill(['recorded_by' => $user?->id])->save();
 
+            $summaryBefore = $locked->only(['payment_status', 'amount_paid']);
             $this->ledger->refresh($locked);
+
+            $this->audit->record(AuditEvent::PaymentRecorded, $user, $payment, new: $this->audit->snapshot($payment), context: [
+                'order_number' => $locked->order_number,
+                'order_payment_status' => ['from' => $summaryBefore['payment_status'], 'to' => $locked->payment_status],
+                'order_amount_paid' => ['from' => $summaryBefore['amount_paid'], 'to' => $locked->amount_paid],
+            ]);
+
             $order->setRawAttributes($locked->getAttributes(), true);
 
             return $payment;
